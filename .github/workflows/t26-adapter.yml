@@ -16,4 +16,6 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install pytest
       - name: Run T26 adapter conformance
+        env:
+          PYTHONPATH: .
         run: pytest -q tests/test_t26_profile_adapter.py
