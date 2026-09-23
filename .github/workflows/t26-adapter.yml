@@ -1,0 +1,17 @@
+name: T26 reusable profile adapter
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  profile-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run T26 adapter conformance
+        run: pytest -q tests/test_t26_profile_adapter.py
