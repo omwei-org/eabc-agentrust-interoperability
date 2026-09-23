@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft profile derived from T25 evidence**
+**Experimental profile validated**
 
 This profile defines how the EABC execution-boundary contract can be instantiated for MCP tool execution through a cMCP-style forwarding gateway.
 
@@ -101,10 +101,14 @@ This profile does not define:
 
 ## Profile result
 
-T25 supports a **profile candidate**, not a claim of native EABC implementation.
+The T25/T26 evidence set supports an **experimental profile conformance result** for the EABC interoperability adapter and cMCP execution seam.
+
+It does **not** establish native EABC conformance of unmodified cMCP v0.5.0.
 
 The central invariant is:
 
 **MAY → COMMIT → DID**
 
 with COMMIT bound to the exact MCP execution object.
+
+Final evidence is frozen by the CI-generated T26.7 manifest at the validated revision.
