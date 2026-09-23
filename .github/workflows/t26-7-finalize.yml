@@ -23,6 +23,8 @@ jobs:
           python-version: "3.12"
       - name: Build content-addressed manifest
         run: python tools/build_t26_7_manifest.py
+      - name: Install test dependencies
+        run: python -m pip install pytest
       - name: Verify manifest
         run: pytest -q tests/test_t26_7_manifest.py
       - name: Show frozen candidate
