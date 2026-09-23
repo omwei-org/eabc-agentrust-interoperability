@@ -1,0 +1,13 @@
+{
+  "profile_id":"eabc-mcp",
+  "profile_version":"0.1-experimental",
+  "vectors":[
+    {"id":"T27-V01","name":"valid-execution-tuple","expected":{"authorization":"ACCEPT","effect":"APPLIED"}},
+    {"id":"T27-V02","name":"call-id-substitution","expected":{"authorization":"DENY","effect":"NONE"}},
+    {"id":"T27-V03","name":"tool-substitution","expected":{"authorization":"DENY","effect":"NONE"}},
+    {"id":"T27-V04","name":"request-substitution","expected":{"authorization":"DENY","effect":"NONE"}},
+    {"id":"T27-V05","name":"policy-substitution","expected":{"authorization":"DENY","effect":"NONE"}},
+    {"id":"T27-V06","name":"commit-replay","expected":{"authorization":"DENY","effect":"NONE"}},
+    {"id":"T27-V07","name":"downstream-execution-failure","expected":{"authorization":"ACCEPT","effect":"NONE"}}
+  ]
+}
