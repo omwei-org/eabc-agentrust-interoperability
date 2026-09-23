@@ -1,7 +1,5 @@
 name: T27.5 native boundary
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 jobs:
   boundary:
