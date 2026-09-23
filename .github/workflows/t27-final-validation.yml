@@ -1,6 +1,9 @@
 name: T27 final validation
 
 on:
+  push:
+    branches:
+      - t27-reproducible-interoperability
   workflow_dispatch:
 
 jobs:
