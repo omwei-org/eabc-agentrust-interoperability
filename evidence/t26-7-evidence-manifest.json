@@ -1,7 +1,33 @@
 {
+  "artifacts": [
+    {
+      "path": "docs/036-t26-eabc-mcp-profile.md",
+      "sha256": "sha256:d26e25435c83b76af18e3df3c9868f8530ea3c82c5006cf9cac14d52be9b4287"
+    },
+    {
+      "path": "docs/037-t26-profile-conformance.md",
+      "sha256": "sha256:bd6bf78d01feb1903fe1dabf2baae4a73fabf08aaa9c59e8a6045589cdd97db0"
+    },
+    {
+      "path": "docs/038-t26-4-conformance-result.md",
+      "sha256": "sha256:186326a75982856a50ace52bebae3a9142e0357c00d15559efbd7b5f45807d7d"
+    },
+    {
+      "path": "docs/039-t26-5-evidence-bundle.md",
+      "sha256": "sha256:4f04fef3efc814f092bc37e451fe4965e882de6d78b32a14593ab5fad95e2da7"
+    },
+    {
+      "path": "evidence/t26-5-conformance-bundle.json",
+      "sha256": "sha256:c29f31f4fa38b7d85776a069ce5a843bc9c012788729b907eb1323a93bfeb1b2"
+    },
+    {
+      "path": "evidence/t26-6-provenance.json",
+      "sha256": "sha256:55264c08eb3335a6aba1be240b619816a96e4a599f23623f1ad1293061088f25"
+    }
+  ],
+  "git_commit": "50e29e8ed49b7767d09dfca45a660eeae1e43298",
+  "hash_algorithm": "SHA-256",
   "manifest_id": "eabc-mcp-t26-7",
   "profile_id": "eabc-mcp",
-  "profile_version": "0.1-experimental",
-  "hash_algorithm": "SHA-256",
-  "artifacts": []
+  "profile_version": "0.1-experimental"
 }
