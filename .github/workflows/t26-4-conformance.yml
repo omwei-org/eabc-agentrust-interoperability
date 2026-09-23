@@ -1,0 +1,17 @@
+name: T26.4 unified conformance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run unified conformance manifest
+        run: pytest -q tests/test_t26_4_conformance_manifest.py
