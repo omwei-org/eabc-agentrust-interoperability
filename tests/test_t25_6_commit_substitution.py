@@ -1,11 +1,9 @@
-"""T25.6 — commit substitution / exact execution-object binding.
-
-The same logical COMMIT is attempted with substitutions in one binding component.
-The adapter must reject before forwarding.
-"""
+"""T25.6 — commit substitution / exact execution-object binding."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,6 +23,15 @@ class Commit:
     tool_name: str
     request_payload_hash: str
     policy_id: str
+
+
+def request_digest(tool_name, arguments):
+    return "sha256:" + hashlib.sha256(
+        json.dumps(
+            {"tool_name": tool_name, "arguments": arguments},
+            sort_keys=True, separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
 
 
 def make_proxy():
@@ -67,24 +74,19 @@ def make_proxy():
 
 
 @pytest.mark.asyncio
-async def test_commit_substitution_fails_closed_before_forwarding():
+async def test_call_id_substitution_fails_closed_before_forwarding():
     proxy = make_proxy()
-
     committed = Commit(
-        commit_id="eabc-t25.6-001", call_id="call-001", tool_name="test.echo",
-        request_payload_hash="placeholder", policy_id="policy-A",
+        "eabc-t25.6-call", "call-001", "test.echo",
+        request_digest("test.echo", {"x": 1}), "policy-A",
     )
     forwarded = []
 
     async def gate(call_id, entry, tool_name, arguments, *, finalization=None):
-        import hashlib, json
-        digest = "sha256:" + hashlib.sha256(
-            json.dumps({"tool_name": tool_name, "arguments": arguments},
-                       sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
+        finalization.eabc_commit_id = committed.commit_id
         candidate = Commit(
-            commit_id=committed.commit_id, call_id=call_id, tool_name=tool_name,
-            request_payload_hash=digest, policy_id="policy-A",
+            committed.commit_id, call_id, tool_name,
+            request_digest(tool_name, arguments), "policy-A",
         )
         if candidate != committed:
             raise PermissionError("EABC_COMMIT_SUBSTITUTION")
@@ -92,39 +94,9 @@ async def test_commit_substitution_fails_closed_before_forwarding():
         return "ok"
 
     proxy._forward_to_upstream = gate
-
-    # Establish the real request digest using the production call path.
-    import hashlib, json
-    digest = "sha256:" + hashlib.sha256(
-        json.dumps({"tool_name": "test.echo", "arguments": {"x": 1}},
-                   sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-    committed = Commit(committed.commit_id, committed.call_id, committed.tool_name, digest, committed.policy_id)
-
-    async def bind_and_gate(call_id, entry, tool_name, arguments, *, finalization=None):
-        finalization.eabc_commit_id = committed.commit_id
-        # Deliberately bind the commit to the original call, while cMCP supplies the actual call_id.
-        candidate_call_id = committed.call_id
-        candidate_digest = "sha256:" + hashlib.sha256(
-            json.dumps({"tool_name": tool_name, "arguments": arguments},
-                       sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
-        candidate = Commit(committed.commit_id, candidate_call_id, tool_name, candidate_digest, committed.policy_id)
-        if candidate != committed:
-            raise PermissionError("EABC_COMMIT_SUBSTITUTION")
-        forwarded.append(candidate)
-        return "ok"
-
-    proxy._forward_to_upstream = bind_and_gate
-
-    # Correct call_id must pass.
     await proxy.call_tool("call-001", "test.echo", {"x": 1})
-    assert len(forwarded) == 1
-
-    # A different call_id reuses the same COMMIT and must be rejected.
     with pytest.raises(PermissionError, match="EABC_COMMIT_SUBSTITUTION"):
         await proxy.call_tool("call-002", "test.echo", {"x": 1})
-
     assert len(forwarded) == 1
     assert proxy._audit.verify_chain() is True
 
@@ -140,22 +112,21 @@ async def test_commit_substitution_fails_closed_before_forwarding():
 )
 async def test_each_binding_component_is_non_substitutable(tool_name, arguments, policy_id):
     proxy = make_proxy()
-    import hashlib, json
-    digest = "sha256:" + hashlib.sha256(
-        json.dumps({"tool_name": "test.echo", "arguments": {"x": 1}},
-                   sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-    committed = Commit("eabc-t25.6-002", "call-002", "test.echo", digest, "policy-A")
+    if tool_name == "test.other":
+        proxy._catalog.entries["test.other"] = proxy._catalog.entries["test.echo"]
 
+    committed = Commit(
+        "eabc-t25.6-component", "call-003", "test.echo",
+        request_digest("test.echo", {"x": 1}), "policy-A",
+    )
     forwarded = []
 
     async def gate(call_id, entry, actual_tool, actual_args, *, finalization=None):
         finalization.eabc_commit_id = committed.commit_id
-        actual_digest = "sha256:" + hashlib.sha256(
-            json.dumps({"tool_name": actual_tool, "arguments": actual_args},
-                       sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
-        candidate = Commit(committed.commit_id, committed.call_id, actual_tool, actual_digest, policy_id)
+        candidate = Commit(
+            committed.commit_id, call_id, actual_tool,
+            request_digest(actual_tool, actual_args), policy_id,
+        )
         if candidate != committed:
             raise PermissionError("EABC_COMMIT_SUBSTITUTION")
         forwarded.append(candidate)
@@ -163,11 +134,8 @@ async def test_each_binding_component_is_non_substitutable(tool_name, arguments,
 
     proxy._forward_to_upstream = gate
 
-    call_id = "call-002"
-    if tool_name == "test.other":
-        # catalog intentionally contains only test.echo; verify the binding gate remains the decisive assertion
-        proxy._catalog._entries["test.other"] = proxy._catalog._entries["test.echo"]
     with pytest.raises(PermissionError, match="EABC_COMMIT_SUBSTITUTION"):
-        await proxy.call_tool(call_id, tool_name, arguments)
+        await proxy.call_tool("call-003", tool_name, arguments)
 
     assert forwarded == []
+    assert proxy._audit.verify_chain() is True
