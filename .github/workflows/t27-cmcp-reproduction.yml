@@ -1,7 +1,5 @@
 name: T27 pinned cMCP reproduction
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 jobs:
   cmcp-reproduction:
