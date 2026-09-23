@@ -9,7 +9,7 @@ def test_t26_6_provenance_is_pinned():
         Path("evidence/t26-6-provenance.json").read_text(encoding="utf-8")
     )
     assert data["upstream"]["source_revision"] == "d03b9af504535d3d43f192bc6d9eff89b8afd12f"
-    assert data["adapter"]["revision"] == "8b7faa4326324f4028bbaf95f2ec8bd6199e276b"
+    assert data["adapter"]["validated_revision"] == "c367837f504f19561192cdd9d98ef4a91497a5f2"
     assert data["integrity"]["method"] == "sha256"
 
 
