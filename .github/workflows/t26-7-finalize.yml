@@ -1,0 +1,29 @@
+name: T26.7 finalize evidence manifest
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "docs/036-t26-eabc-mcp-profile.md"
+      - "docs/037-t26-profile-conformance.md"
+      - "docs/038-t26-4-conformance-result.md"
+      - "docs/039-t26-5-evidence-bundle.md"
+      - "evidence/t26-5-conformance-bundle.json"
+      - "evidence/t26-6-provenance.json"
+      - "tools/build_t26_7_manifest.py"
+      - "tests/test_t26_7_manifest.py"
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build content-addressed manifest
+        run: python tools/build_t26_7_manifest.py
+      - name: Verify manifest
+        run: pytest -q tests/test_t26_7_manifest.py
+      - name: Show frozen candidate
+        run: cat evidence/t26-7-evidence-manifest.json
