@@ -2,6 +2,8 @@ name: T25.6 commit substitution
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
