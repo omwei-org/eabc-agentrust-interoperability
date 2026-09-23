@@ -1,0 +1,37 @@
+name: EABC cMCP interoperability tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  eabc-cmcp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout experiment repository
+        uses: actions/checkout@v4
+
+      - name: Checkout cMCP v0.5.0
+        uses: actions/checkout@v4
+        with:
+          repository: agentrust-io/cmcp
+          ref: v0.5.0
+          path: upstream/cmcp
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cMCP
+        working-directory: upstream/cmcp
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run EABC interoperability tests
+        env:
+          PYTHONPATH: upstream/cmcp
+        run: pytest -q tests
