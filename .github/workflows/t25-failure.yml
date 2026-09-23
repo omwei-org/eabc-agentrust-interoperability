@@ -2,6 +2,8 @@ name: T25.4 failure semantics
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
