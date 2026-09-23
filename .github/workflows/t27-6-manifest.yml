@@ -1,7 +1,5 @@
 name: T27.6 reproduction manifest
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 jobs:
   manifest:
