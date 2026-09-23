@@ -2,9 +2,10 @@
 
 ## Status
 
-**Experimental conformance manifest**
+**Experimental conformance result — CLOSED**
 
-Upstream: public cMCP v0.5.0
+Upstream: public cMCP v0.5.0  
+Pinned upstream source revision: `d03b9af504535d3d43f192bc6d9eff89b8afd12f`
 
 | Requirement | Status | Evidence |
 |---|---|---|
@@ -29,23 +30,23 @@ The conformance subject is:
 
 not cMCP alone.
 
-## Evidence rule
+## Finalization
 
-A requirement is PASS only when an executable test demonstrates the invariant and the test identifies its evidence source.
+The reusable `eabc_profile` adapter is implemented and validated by CI.
+
+The T26.5 machine-readable evidence bundle is present.
+
+T26.6 records the pinned upstream revision and validated adapter revision.
+
+T26.7 generates the content-addressed evidence manifest in CI from the exact checkout and verifies it before upload.
+
+Final T26.7 CI run: `35895290058`  
+Validated repository revision: `c7a53b1c148fa6080dd5c8553388bf560dbb5873`
 
 ## Current result
 
-**PROFILE CONFORMANCE: EXPERIMENTAL PASS**
+**PROFILE CONFORMANCE: EXPERIMENTAL_PASS**
 
-**NATIVE cMCP CONFORMANCE: NOT CLAIMED**
+**NATIVE cMCP CONFORMANCE: NOT_CLAIMED**
 
-## Remaining work
-
-Before calling this a stable profile release, the suite should add:
-
-1. machine-readable evidence manifest;
-2. failure-outcome conformance cases;
-3. independent verifier;
-4. versioned profile identifier;
-5. upstream cMCP revision pinning;
-6. reproducible evidence bundle.
+The T26 experimental validation scope is therefore closed. Any future work should be treated as a new revision or profile version rather than unfinished T26 closure work.
