@@ -1,0 +1,83 @@
+name: T27 final validation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact T27 revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install pytest
+
+      - name: T27.1 interoperability vectors
+        run: pytest -q tests/test_t27_1_interoperability_vectors.py
+        env:
+          PYTHONPATH: .
+
+      - name: T27.2 failure preservation
+        run: pytest -q tests/test_t27_2_failure_preservation.py
+        env:
+          PYTHONPATH: .
+
+      - name: T27.3 deterministic reproduction
+        run: pytest -q tests/test_t27_3_reproducibility.py
+        env:
+          PYTHONPATH: .
+
+      - name: T27.4 evidence binding
+        run: pytest -q tests/test_t27_4_evidence_binding.py
+        env:
+          PYTHONPATH: .
+
+      - name: T27.5 native boundary
+        run: pytest -q tests/test_t27_5_native_boundary.py
+        env:
+          PYTHONPATH: .
+
+      - name: Clone pinned cMCP source
+        run: |
+          git clone https://github.com/agentrust-io/cmcp.git upstream/cmcp
+          git -C upstream/cmcp checkout d03b9af504535d3d43f192bc6d9eff89b8afd12f
+          test "$(git -C upstream/cmcp rev-parse HEAD)" = "d03b9af504535d3d43f192bc6d9eff89b8afd12f"
+
+      - name: Install pinned cMCP
+        working-directory: upstream/cmcp
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Reproduce pinned cMCP interoperability seam
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: |
+          pytest -q tests/test_t26_2_real_proxy_adapter.py tests/test_t26_3_negative_conformance.py tests/test_t25_cmcp_runtime_seam.py
+
+      - name: Build T27 reproduction manifest
+        run: python tools/build_t27_manifest.py
+
+      - name: T27.6 manifest verification
+        run: pytest -q tests/test_t27_6_manifest.py
+        env:
+          PYTHONPATH: .
+
+      - name: Verify manifest binds this exact checkout
+        run: |
+          test "$(python -c 'import json; print(json.load(open("evidence/t27-reproduction-manifest.json"))["git_commit"])')" = "$GITHUB_SHA"
+
+      - name: Upload authoritative T27 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: t27-final-validation
+          path: evidence/t27-reproduction-manifest.json
+          if-no-files-found: error
