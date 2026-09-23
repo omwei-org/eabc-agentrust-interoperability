@@ -2,6 +2,8 @@ name: T26.2 real cMCP proxy adapter
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
