@@ -1,7 +1,5 @@
 name: T27.4 evidence binding
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 jobs:
   evidence:
