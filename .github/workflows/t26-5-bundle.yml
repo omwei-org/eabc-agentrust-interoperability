@@ -2,7 +2,8 @@ name: T26.5 evidence bundle verifier
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

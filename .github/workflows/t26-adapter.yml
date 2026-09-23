@@ -2,7 +2,8 @@ name: T26 reusable profile adapter
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
