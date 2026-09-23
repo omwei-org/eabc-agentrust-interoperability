@@ -2,6 +2,8 @@ name: T25.9 reducibility matrix
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
