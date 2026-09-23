@@ -9,7 +9,8 @@ import pytest
 from cmcp_runtime.audit.chain import AuditChain
 from cmcp_runtime.config import AttestationConfig, Config, EnforcementMode
 from cmcp_runtime.catalog.loader import ApprovedDefinition, CatalogEntry, ServerIdentity, ToolCatalog
-from cmcp_runtime.mcp.proxy import CMCPProxy
+from cmcp_runtime.mcp.proxy import CMCPProxy, _EffectBoundaryState
+from cmcp_runtime.session.state import SessionState
 
 
 def make_proxy():
@@ -33,15 +34,21 @@ def make_proxy():
     with patch("cmcp_runtime.mcp.proxy.MCPGateway"), patch("cmcp_runtime.mcp.proxy.MCPResponseScanner"):
         proxy = CMCPProxy(
             catalog=catalog, policy_evaluator=MagicMock(),
-            session=__import__("cmcp_runtime.session.state", fromlist=["SessionState"]).SessionState(session_id="t25.5"),
+            session=SessionState(session_id="t25.5"),
             audit_chain=AuditChain("t25.5"), config=config,
         )
     proxy._check_health = MagicMock(return_value=None)
     proxy._check_upstream_drift = AsyncMock(return_value=False)
-    proxy._policy.evaluate.return_value = MagicMock(rule_matched="test.allow", would_have_denied=False, advice={})
+    proxy._policy.evaluate.return_value = MagicMock(
+        rule_matched="test.allow", would_have_denied=False, advice={}
+    )
     proxy._mcp_gateway.intercept_tool_call.return_value = (True, "")
-    proxy._mcp_gateway.intercept_tool_response.return_value = MagicMock(threats=[], content=None, allowed=True)
-    proxy._policy.authorize_egress.return_value = MagicMock(would_have_denied=False, advice={})
+    proxy._mcp_gateway.intercept_tool_response.return_value = MagicMock(
+        threats=[], content=None, allowed=True
+    )
+    proxy._policy.authorize_egress.return_value = MagicMock(
+        would_have_denied=False, advice={}
+    )
     return proxy
 
 
@@ -58,26 +65,25 @@ async def test_same_commit_cannot_be_forwarded_twice():
             raise PermissionError("EABC_COMMIT_REPLAY")
         seen.add(commit_id)
         effects.append((commit_id, call_id, tool_name, arguments))
-        finalization.effect_boundary_state = __import__(
-            "cmcp_runtime.mcp.proxy", fromlist=["_EffectBoundaryState"]
-        )._EffectBoundaryState.TRANSPORT_RESPONSE_RECEIVED
-        return {"content": [{"type": "text", "text": "ok"}]}
+        finalization.effect_boundary_state = _EffectBoundaryState.TRANSPORT_RESPONSE_RECEIVED
+        return "ok"
 
-    proxy._forward_to_upstream = forward
+    commit_id = "eabc-t25.5-replay"
 
-    # Two distinct cMCP calls attempt to reuse the same EABC commit.
-    for call_id in ("t25.5-a", "t25.5-b"):
-        finalization_commit = "eabc-t25.5-replay"
-        original = proxy._forward_to_upstream
-        async def gated(call_id_, entry_, tool_name_, arguments_, *, finalization=None):
-            finalization.eabc_commit_id = finalization_commit
-            return await original(call_id_, entry_, tool_name_, arguments_, finalization=finalization)
-        proxy._forward_to_upstream = gated
-        if call_id.endswith("a"):
-            await proxy.call_tool(call_id, "test.echo", {"x": 1})
-        else:
-            with pytest.raises(PermissionError, match="EABC_COMMIT_REPLAY"):
-                await proxy.call_tool(call_id, "test.echo", {"x": 1})
+    async def gated(call_id, entry, tool_name, arguments, *, finalization=None):
+        finalization.eabc_commit_id = commit_id
+        return await forward(
+            call_id, entry, tool_name, arguments, finalization=finalization
+        )
+
+    proxy._forward_to_upstream = gated
+
+    await proxy.call_tool("t25.5-a", "test.echo", {"x": 1})
+
+    with pytest.raises(PermissionError, match="EABC_COMMIT_REPLAY"):
+        await proxy.call_tool("t25.5-b", "test.echo", {"x": 1})
 
     assert len(effects) == 1
+    assert effects[0][0] == commit_id
+    assert effects[0][1] == "t25.5-a"
     assert proxy._audit.verify_chain() is True
