@@ -21,8 +21,16 @@ A profile MAY claim partial conformance when all demonstrated requirements are e
 
 ## Current experimental status
 
-The T25 evidence set demonstrates all listed MUST invariants at the EABC interoperability adapter.
+The T25/T26 evidence set demonstrates all listed MUST invariants at the EABC interoperability adapter.
 
-It does not establish native conformance of unmodified cMCP v0.5.0.
+The reusable `eabc_profile` adapter is implemented and its conformance tests pass.
 
-The next implementation target is to replace disposable test gates with a reusable profile adapter and run the same conformance suite against it.
+The validated upstream is cMCP v0.5.0 at source revision `d03b9af504535d3d43f192bc6d9eff89b8afd12f`.
+
+The final evidence set is bound by the CI-generated T26.7 manifest to repository revision `c7a53b1c148fa6080dd5c8553388bf560dbb5873`.
+
+This does not establish native conformance of unmodified cMCP v0.5.0.
+
+**Result: EXPERIMENTAL_PASS.**
+
+**Native cMCP conformance: NOT_CLAIMED.**
