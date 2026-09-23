@@ -12,6 +12,7 @@ on:
       - "evidence/t26-6-provenance.json"
       - "tools/build_t26_7_manifest.py"
       - "tests/test_t26_7_manifest.py"
+      - ".github/workflows/t26-7-finalize.yml"
 
 jobs:
   finalize:
