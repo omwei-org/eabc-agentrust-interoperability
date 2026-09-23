@@ -1,7 +1,5 @@
 name: T27.2 failure preservation
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 jobs:
   failure:
