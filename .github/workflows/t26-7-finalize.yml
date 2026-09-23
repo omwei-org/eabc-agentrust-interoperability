@@ -27,3 +27,9 @@ jobs:
         run: pytest -q tests/test_t26_7_manifest.py
       - name: Show frozen candidate
         run: cat evidence/t26-7-evidence-manifest.json
+      - name: Upload generated manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: t26-7-evidence-manifest
+          path: evidence/t26-7-evidence-manifest.json
+          if-no-files-found: error
