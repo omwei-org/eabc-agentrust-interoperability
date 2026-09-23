@@ -1,6 +1,6 @@
 """Build a content-addressed T26.7 evidence manifest."""
 from __future__ import annotations
-import hashlib, json
+import hashlib, json, subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +17,11 @@ OUT = ROOT / "evidence/t26-7-evidence-manifest.json"
 def sha256(path: Path) -> str:
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
+def git_commit() -> str:
+    return subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+
 def main() -> None:
     entries = [{"path": p, "sha256": sha256(ROOT / p)} for p in FILES]
     manifest = {
@@ -24,6 +29,7 @@ def main() -> None:
         "profile_id": "eabc-mcp",
         "profile_version": "0.1-experimental",
         "hash_algorithm": "SHA-256",
+        "git_commit": git_commit(),
         "artifacts": entries,
     }
     OUT.write_text(
