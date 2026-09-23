@@ -1,0 +1,37 @@
+{
+  "experiment": "EABC-AgenTrust interoperability",
+  "stage": "T24-evidence-freeze",
+  "purpose": "Freeze the verified upstream facts, adapter demonstrations, and proposed integration semantics before external collaboration.",
+  "upstream": {
+    "repository": "agentrust-io/cmcp",
+    "revision": "f8743e013786b094caaa70c336519834e73c74d5",
+    "component": "CMCPProxy",
+    "runtime_path": "call_tool -> _call_tool_impl -> _forward_to_upstream"
+  },
+  "local_repository": {
+    "repository": "omwei-org/eabc-agentrust-interoperability"
+  },
+  "verified_upstream_facts": [
+    "CMCPProxy exposes a concrete _forward_to_upstream seam.",
+    "The call path computes request information before forwarding.",
+    "Caller-supplied execution_id is currently rejected by the execution-admission path with execution_correlation_unavailable.",
+    "The cMCP path contains existing authorization, gateway and audit/evidence mechanisms."
+  ],
+  "demonstrated_adapter_semantics": [
+    "A valid EABC commit can gate forwarding.",
+    "No commit produces no forwarding/effect in the harness.",
+    "A mismatched request digest is rejected.",
+    "A mismatched call_id is rejected.",
+    "A mismatched tool identity is rejected.",
+    "A mismatched policy hash can be rejected.",
+    "A commit can be correlated to an existing cMCP call identifier and terminal evidence hash."
+  ],
+  "proposed_relation": "EABC commit_id -> cMCP call_id -> request_payload_hash -> AuditEntry.entry_hash -> GatewayClaim/TRACE",
+  "not_yet_demonstrated": [
+    "Unmodified cMCP production runtime enforces the EABC commit relation.",
+    "The relation is persisted atomically with terminal audit evidence.",
+    "The relation provides exclusive mediation over every possible downstream effect path.",
+    "Physical execution is hardware-enforced by the EABC adapter."
+  ],
+  "status": "READY_FOR_COLLABORATION_ARTIFACT"
+}
