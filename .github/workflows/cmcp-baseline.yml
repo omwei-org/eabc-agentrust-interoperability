@@ -1,0 +1,50 @@
+name: cMCP upstream baseline
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cmcp-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout experiment repository
+        uses: actions/checkout@v4
+
+      - name: Checkout cMCP v0.5.0
+        uses: actions/checkout@v4
+        with:
+          repository: agentrust-io/cmcp
+          ref: v0.5.0
+          path: upstream/cmcp
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cMCP test dependencies
+        working-directory: upstream/cmcp
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Record pinned upstream revision
+        run: |
+          mkdir -p evidence/upstream-baseline
+          git -C upstream/cmcp rev-parse HEAD | tee evidence/upstream-baseline/cmcp-commit.txt
+          python --version | tee evidence/upstream-baseline/python-version.txt
+          pip freeze | tee evidence/upstream-baseline/pip-freeze.txt
+
+      - name: Run upstream test suite
+        working-directory: upstream/cmcp
+        run: pytest -q
+
+      - name: Upload baseline metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmcp-v0.5.0-baseline
+          path: evidence/upstream-baseline/
