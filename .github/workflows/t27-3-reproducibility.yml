@@ -1,7 +1,5 @@
 name: T27.3 deterministic reproduction
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 jobs:
   reproduction:
