@@ -1,0 +1,28 @@
+name: T25.6 commit substitution
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  t25-substitution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone public cMCP v0.5.0
+        run: |
+          git clone --branch v0.5.0 --depth 1 https://github.com/agentrust-io/cmcp.git upstream/cmcp
+          echo "cMCP revision: $(git -C upstream/cmcp rev-parse HEAD)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cMCP
+        working-directory: upstream/cmcp
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run T25.6
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: pytest -q tests/test_t25_6_commit_substitution.py
