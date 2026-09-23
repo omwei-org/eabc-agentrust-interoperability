@@ -7,17 +7,14 @@
     "repository": "agentrust-io/cmcp",
     "version": "v0.5.0",
     "source_ref": "v0.5.0",
-    "source_revision": "PIN_REQUIRED_FROM_CI"
+    "source_revision": "d03b9af504535d3d43f192bc6d9eff89b8afd12f"
   },
   "adapter": {
     "repository": "omwei-org/eabc-agentrust-interoperability",
-    "revision": "TO_BE_FILLED_BY_RELEASE_CI"
+    "revision": "8b7faa4326324f4028bbaf95f2ec8bd6199e276b"
   },
   "ci": {
     "t25_2": "35865248734",
-    "t25_3": "RECORDED_IN_T25_ARTIFACT",
-    "t25_4": "RECORDED_IN_T25_ARTIFACT",
-    "t25_5": "RECORDED_IN_T25_ARTIFACT",
     "t25_6": "35861532790",
     "t25_7": "35862127681",
     "t25_8": "35862605852",
@@ -26,6 +23,6 @@
   },
   "integrity": {
     "method": "sha256",
-    "rule": "Every referenced evidence artifact MUST be content-addressed before release."
+    "rule": "Referenced evidence artifacts MUST be content-addressed before release."
   }
 }
