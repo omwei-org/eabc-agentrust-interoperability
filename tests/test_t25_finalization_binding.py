@@ -1,4 +1,4 @@
-"""T25.3 — bind an EABC commit to cMCP's existing finalization and terminal evidence."""
+"""T25.3 — bind an EABC commit to cMCP finalization and terminal evidence."""
 
 from __future__ import annotations
 
@@ -77,63 +77,58 @@ def make_proxy():
 
 
 @pytest.mark.asyncio
-async def test_t25_commit_binds_to_existing_finalization_and_terminal_audit():
+async def test_t25_commit_tuple_is_reconstructable_from_terminal_audit():
     proxy = make_proxy()
-    call_id = "t25-call-101"
+    call_id = "t25-call-103"
     args = {"message": "hello", "n": 1}
-    commit = {
-        "commit_id": "eabc-t25-101",
-        "call_id": call_id,
-        "tool_name": "test.echo",
-        "request_payload_hash": digest(args),
-    }
-    observed = {}
+    request_hash = digest(args)
 
     async def gated_forward(call_id, entry, tool_name, arguments, *, finalization=None):
         assert finalization is not None
-        assert finalization.request_payload_hash == digest(arguments)
-
-        # Bind the EABC commit to the SAME cMCP finalization object that
-        # call_tool() will later use for terminal persistence.
-        finalization.eabc_commit_id = commit["commit_id"]
-        finalization.eabc_commit_call_id = call_id
-
-        observed["forward"] = {
-            "call_id": call_id,
-            "commit_id": finalization.eabc_commit_id,
-            "request_payload_hash": finalization.request_payload_hash,
-        }
+        assert finalization.request_payload_hash == request_hash
         return json.dumps({"ok": True})
 
     proxy._forward_to_upstream = gated_forward
     result = await proxy.call_tool(call_id, "test.echo", args)
 
-    assert result.allowed is True
-    assert observed["forward"]["commit_id"] == commit["commit_id"]
-    assert observed["forward"]["call_id"] == call_id
-    assert observed["forward"]["request_payload_hash"] == digest(args)
-    assert result.audit_entry_hash == proxy._audit.chain_tip
+    terminal = proxy._audit.entries[-1]
+    assert terminal.call_id == call_id
+    assert terminal.tool_name == "test.echo"
+    assert terminal.request_payload_hash == request_hash
+    assert result.audit_entry_hash == terminal.entry_hash
+    assert proxy._audit.verify_chain() is True
 
-    # T25.3 discovery: the upstream _CallFinalizationState currently has no
-    # normative EABC commit field. The experiment can attach one dynamically,
-    # but cMCP's production terminal audit does not serialize it today.
-    # Therefore this test demonstrates object-level binding, not production
-    # EABC evidence binding.
-    assert getattr(proxy, "_audit").chain_tip
+
+@pytest.mark.asyncio
+async def test_t25_commit_id_is_not_present_in_production_terminal_audit():
+    proxy = make_proxy()
+    call_id = "t25-call-104"
+    args = {"message": "hello"}
+
+    async def gated_forward(call_id, entry, tool_name, arguments, *, finalization=None):
+        assert finalization is not None
+        finalization.eabc_commit_id = "eabc-t25-104"
+        return json.dumps({"ok": True})
+
+    proxy._forward_to_upstream = gated_forward
+    result = await proxy.call_tool(call_id, "test.echo", args)
+
+    terminal = proxy._audit.entries[-1]
+    serialized = terminal._canonical_body().decode()
+
+    assert "eabc-t25-104" not in serialized
+    assert result.audit_entry_hash == terminal.entry_hash
 
 
 @pytest.mark.asyncio
 async def test_t25_commit_binding_fails_closed_before_upstream_effect():
     proxy = make_proxy()
-    call_id = "t25-call-102"
-    args = {"message": "hello"}
 
     async def gated_forward(call_id, entry, tool_name, arguments, *, finalization=None):
-        if finalization is None:
-            raise AssertionError("missing finalization")
+        assert finalization is not None
         raise PermissionError("EABC_COMMIT_REQUIRED")
 
     proxy._forward_to_upstream = gated_forward
 
     with pytest.raises(PermissionError, match="EABC_COMMIT_REQUIRED"):
-        await proxy.call_tool(call_id, "test.echo", args)
+        await proxy.call_tool("t25-call-105", "test.echo", {"message": "hello"})
