@@ -2,6 +2,8 @@ name: T25.7 evidence binding
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
