@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import threading
 from typing import Any
 
 
@@ -63,8 +64,31 @@ class EABCMCPAdapter:
 
     def __init__(self) -> None:
         self._consumed: set[str] = set()
+        self._lock = threading.Lock()
 
     def validate(
+        self,
+        commit: EABCCommit,
+        *,
+        agent_identity: str,
+        execution_id: str,
+        call_id: str,
+        tool_name: str,
+        arguments: dict[str, Any],
+        policy_id: str,
+    ) -> None:
+        with self._lock:
+            self._validate_locked(
+                commit,
+                agent_identity=agent_identity,
+                execution_id=execution_id,
+                call_id=call_id,
+                tool_name=tool_name,
+                arguments=arguments,
+                policy_id=policy_id,
+            )
+
+    def _validate_locked(
         self,
         commit: EABCCommit,
         *,
