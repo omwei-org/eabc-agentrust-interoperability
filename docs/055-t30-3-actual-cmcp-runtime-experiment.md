@@ -74,9 +74,9 @@ The file sink demonstrates an observable software consequence. It does not prove
 
 ## TOCTOU / race experiment
 
-T30.3 MUST include a coordinated race between authority validation and forwarding. One worker pauses after authority validation while another invalidates the authority state; forwarding is then released. The result must distinguish validation once across a mutable interval from a final authority check at the commit transition.
+T30.3.1 MUST include a coordinated validation-to-forwarding race seam. The current experiment injects an experiment-only invalidation callback after EABC binding validation and before an experiment-only final authority check; this models authority mutation inside the interval without claiming that cMCP itself supplies a revocation primitive. A separate concurrency case runs two proxy instances against the same execution identifier to exercise the shared reservation guard.
 
-A race result MUST NOT be interpreted as a vulnerability in cMCP unless the tested path is production-reachable and the authority mutation is within the stated threat model.
+The result distinguishes the simulated authority invalidation interval from the final authority check and the single-use reservation. A race result MUST NOT be interpreted as a vulnerability in cMCP unless the tested path is production-reachable and the authority mutation is within the stated threat model.
 
 ## Evidence artifacts
 
