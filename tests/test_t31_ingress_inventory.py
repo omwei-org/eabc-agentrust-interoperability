@@ -19,7 +19,7 @@ def test_t31_pin_and_production_mcp_ingress() -> None:
 
     assert PIN in Path(".github/workflows/t30-3-runtime-experiment.yml").read_text()
     assert 'Route("/mcp", self._handle_mcp, methods=["POST"])' in server
-    assert "if method == \"tools/call":" in server
+    assert 'if method == "tools/call":' in server
     assert "return await self._handle_tool_call(rpc_id, params)" in server
     assert "result = await self._proxy.call_tool(" in server
 
