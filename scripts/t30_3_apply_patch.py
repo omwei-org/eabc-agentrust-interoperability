@@ -50,7 +50,12 @@ def main():
         raise SystemExit("T30.3 patch anchor missing: upstream runtime changed.")
     text = text.replace(IMPORT_ANCHOR, IMPORT_ANCHOR + "from eabc_profile import EABCMCPAdapter\n", 1)
     native_refusal = """        finalization.execution_id = execution_id
-        return self._refuse_execution("""
+        return self._refuse_execution(
+            finalization, entry, call_id, tool_name, request_payload_hash,
+            sensitivity_before, workflow_id, t0, called_at,
+            rule="execution:unavailable",
+            deny_reason="execution_correlation_unavailable",
+        )"""
     experiment_admission = """        # T30.3 EXPERIMENT ONLY: admit valid execution_id so the added
         # EABC hook below becomes the experiment's execution admission gate.
         # Native cMCP at this pinned revision would refuse this request here.
