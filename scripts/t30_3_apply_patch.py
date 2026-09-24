@@ -37,6 +37,16 @@ def main():
     if IMPORT_ANCHOR not in text or HOOK_ANCHOR not in text:
         raise SystemExit("T30.3 patch anchor missing: upstream runtime changed.")
     text = text.replace(IMPORT_ANCHOR, IMPORT_ANCHOR + "from eabc_profile import EABCMCPAdapter\n", 1)
+    native_refusal = """        finalization.execution_id = execution_id
+        return self._refuse_execution("""
+    experiment_admission = """        # T30.3 EXPERIMENT ONLY: admit valid execution_id so the added
+        # EABC hook below becomes the experiment's execution admission gate.
+        # Native cMCP at this pinned revision would refuse this request here.
+        finalization.execution_id = execution_id
+        return None"""
+    if native_refusal not in text:
+        raise SystemExit("T30.3 native execution-refusal anchor missing.")
+    text = text.replace(native_refusal, experiment_admission, 1)
     text = text.replace(HOOK_ANCHOR, HOOK + HOOK_ANCHOR, 1)
     UPSTREAM.write_text(text)
 if __name__ == "__main__":
