@@ -75,13 +75,9 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
     sink = tmp_path / "concurrent.jsonl"
     server, url = _sink_server(sink)
     try:
-        proxy = _make_proxy(url)
         execution_id = "exec-t30-3-1-concurrent"
         args = {"destination": "concurrent", "value": 2}
-        proxy._t30_3_adapter = EABCMCPAdapter()
         commits = [_commit(execution_id, "call-concurrent-1", args, "commit-t30-3-1-a"), _commit(execution_id, "call-concurrent-2", args, "commit-t30-3-1-b")]
-        proxy._t30_3_policy_id = "t30.3.1-policy"
-
         barrier = threading.Barrier(2)
 
         def before_forward():
@@ -93,7 +89,12 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
         def invoke(commit):
             async def run():
                 from unittest.mock import patch
+                proxy = _make_proxy(url)
+                proxy._t30_3_adapter = EABCMCPAdapter()
                 proxy._t30_3_commit = commit
+                proxy._t30_3_policy_id = "t30.3.1-policy"
+                proxy._t30_3_before_forward = before_forward
+                proxy._t30_3_final_authority_check = lambda: None
                 with patch.object(proxy, "_check_health", return_value=None):
                     try:
                         await proxy.call_tool(
