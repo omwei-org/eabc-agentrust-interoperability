@@ -35,6 +35,7 @@ jobs:
         run: |
           pytest -q tests/test_t30_3_preflight.py
           pytest -q tests/test_t30_3_runtime_experiment.py
+          pytest -q tests/test_t30_3_1_toctou_concurrency.py
       - name: Build evidence manifest
         if: always()
         run: |
