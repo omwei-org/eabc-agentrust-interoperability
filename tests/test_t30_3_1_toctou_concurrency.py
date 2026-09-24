@@ -70,6 +70,48 @@ async def test_t30_3_1_revocation_between_admission_and_forwarding(tmp_path: Pat
         server.shutdown()
 
 
+@pytest.mark.asyncio
+async def test_t30_3_1_argument_substitution_rejected_at_runtime(tmp_path: Path):
+    sink = tmp_path / "substitution.jsonl"
+    server, url = _sink_server(sink)
+    try:
+        proxy = _make_proxy(url)
+        execution_id = "exec-t30-3-1-substitution"
+        committed_args = {"destination": "committed", "value": 4}
+        supplied_args = {"destination": "substituted", "value": 4}
+        proxy._t30_3_adapter = EABCMCPAdapter()
+        proxy._t30_3_commit = _commit(execution_id, "call-substitution", committed_args, agent=proxy._session.session_id)
+        proxy._t30_3_policy_id = "t30.3.1-policy"
+        with pytest.raises(PermissionError, match="EABC_COMMIT_SUBSTITUTION"):
+            with __import__("unittest").mock.patch.object(proxy, "_check_health", return_value=None):
+                await proxy.call_tool("call-substitution", "test.effect", supplied_args, execution_id=execution_id)
+        assert not sink.exists() or sink.read_text() == ""
+    finally:
+        server.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_t30_3_1_replay_rejected_at_runtime(tmp_path: Path):
+    sink = tmp_path / "replay.jsonl"
+    server, url = _sink_server(sink)
+    try:
+        proxy = _make_proxy(url)
+        execution_id = "exec-t30-3-1-replay"
+        args = {"destination": "replay", "value": 5}
+        proxy._t30_3_adapter = EABCMCPAdapter()
+        proxy._t30_3_commit = _commit(execution_id, "call-replay", args, agent=proxy._session.session_id)
+        proxy._t30_3_policy_id = "t30.3.1-policy"
+        with __import__("unittest").mock.patch.object(proxy, "_check_health", return_value=None):
+            first = await proxy.call_tool("call-replay", "test.effect", args, execution_id=execution_id)
+        assert first.allowed is True
+        with pytest.raises(PermissionError, match="EABC_COMMIT_REPLAY"):
+            with __import__("unittest").mock.patch.object(proxy, "_check_health", return_value=None):
+                await proxy.call_tool("call-replay", "test.effect", args, execution_id=execution_id)
+        assert len(sink.read_text().splitlines()) == 1
+    finally:
+        server.shutdown()
+
+
 def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path: Path):
     sink = tmp_path / "concurrent.jsonl"
     server, url = _sink_server(sink)
