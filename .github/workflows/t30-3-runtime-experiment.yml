@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Clone execution-correlation revision
+      - name: Clone pinned cMCP revision
         run: |
           git clone https://github.com/agentrust-io/cmcp.git upstream/cmcp
           git -C upstream/cmcp checkout f8743e013786b094caaa70c336519834e73c74d5
@@ -20,12 +20,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip pytest
-          pip install -e 'upstream/cmcp[dev]'
-      - name: Run T30.3 preflight and harness
+          pip install -e "upstream/cmcp[dev]"
+      - name: Apply disposable T30.3 runtime patch
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python scripts/t30_3_apply_patch.py
+      - name: Run T30.3 preflight and observable tests
         env:
           PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
         run: |
@@ -38,7 +42,16 @@ jobs:
           git rev-parse HEAD > evidence/t30-3/experiment-commit.txt
           git -C upstream/cmcp rev-parse HEAD > evidence/t30-3/upstream-commit.txt
           git -C upstream/cmcp tag --points-at HEAD > evidence/t30-3/upstream-tags.txt || true
-          sha256sum evidence/t30-3/* > evidence/t30-3/SHA256SUMS
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path("evidence/t30-3")
+          files = sorted(p for p in root.iterdir() if p.is_file())
+          manifest = {"files": [{"path": str(p.relative_to(root)), "sha256": hashlib.sha256(p.read_bytes()).hexdigest()} for p in files]}
+          (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          (root / "SHA256SUMS").write_text("\n".join(f"{item['sha256']}  {item['path']}" for item in manifest["files"]) + "\n")
+          PY
+          cat evidence/t30-3/manifest.json
           cat evidence/t30-3/SHA256SUMS
       - name: Upload T30.3 evidence
         if: always()
