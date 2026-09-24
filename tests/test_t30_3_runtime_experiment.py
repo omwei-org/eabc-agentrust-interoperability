@@ -84,7 +84,7 @@ def _sink_server(sink: Path):
                 }
                 raw = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
                 with sink.open("ab") as f:
-                    f.write(raw + b"\\n")
+                    f.write(raw + b"\n")
                     f.flush()
                 body = {
                     "jsonrpc": "2.0",
