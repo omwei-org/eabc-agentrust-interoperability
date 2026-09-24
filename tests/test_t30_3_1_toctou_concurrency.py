@@ -83,13 +83,11 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
         def before_forward():
             barrier.wait(timeout=10)
 
-        proxy._t30_3_before_forward = before_forward
-        proxy._t30_3_final_authority_check = lambda: None
-
         def invoke(commit):
             async def run():
                 from unittest.mock import patch
                 proxy = _make_proxy(url)
+                proxy._session.session_id = "t30-3-1-agent"
                 proxy._t30_3_adapter = EABCMCPAdapter()
                 proxy._t30_3_commit = commit
                 proxy._t30_3_policy_id = "t30.3.1-policy"
