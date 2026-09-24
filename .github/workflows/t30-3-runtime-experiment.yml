@@ -52,9 +52,9 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
         run: |
           set -o pipefail
-          pytest -q tests/test_t30_3_preflight.py
-          pytest -q tests/test_t30_3_runtime_experiment.py
-          pytest -q tests/test_t30_3_1_toctou_concurrency.py | tee evidence/t30-3/experimental-results.txt
+          pytest -q tests/test_t30_3_preflight.py | tee evidence/t30-3/preflight-results.txt
+          pytest -q tests/test_t30_3_runtime_experiment.py | tee evidence/t30-3/runtime-results.txt
+          pytest -q tests/test_t30_3_1_toctou_concurrency.py | tee evidence/t30-3/toctou-concurrency-results.txt
       - name: Build evidence manifest
         if: always()
         run: |
@@ -88,6 +88,20 @@ jobs:
           PY
           cat evidence/t30-3/manifest.json
           cat evidence/t30-3/SHA256SUMS
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          root = Path("evidence/t30-3")
+          manifest = __import__("json").loads((root / "manifest.json").read_text())
+          expected = {item["path"]: item["sha256"] for item in manifest["files"]}
+          actual = {
+              str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in root.rglob("*")
+              if p.is_file() and p.name not in {"manifest.json", "SHA256SUMS"}
+          }
+          assert actual == expected, "evidence manifest verification failed"
+          print(f"Verified {len(actual)} evidence file hashes")
+          PY
       - name: Upload T30.3 evidence
         if: always()
         uses: actions/upload-artifact@v4
