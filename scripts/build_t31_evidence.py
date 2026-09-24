@@ -8,7 +8,7 @@ PIN = "f8743e013786b094caaa70c336519834e73c74d5"
 
 
 def main() -> None:
-    root = Path("evidence/t31")
+    root = Path("evidence/t30-3/t31")
     root.mkdir(parents=True, exist_ok=True)
     record = {
         "experiment": "T31",
