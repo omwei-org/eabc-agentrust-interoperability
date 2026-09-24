@@ -9,6 +9,10 @@ HOOK = '''        # T30.3 EXPERIMENTAL: EABC admission hook. This is repository-
         t30_3_adapter = getattr(self, "_t30_3_adapter", None)
         t30_3_commit = getattr(self, "_t30_3_commit", None)
         t30_3_hook_enabled = not getattr(self, "_t30_3_disable_hook", False)
+        if not hasattr(self, "_t30_3_reservation_lock"):
+            import threading
+            self._t30_3_reservation_lock = threading.Lock()
+            self._t30_3_reserved_execution_ids = set()
         if execution_id is not None and t30_3_adapter is not None and t30_3_hook_enabled:
             if t30_3_commit is None:
                 return self._refuse_execution(
@@ -32,6 +36,10 @@ HOOK = '''        # T30.3 EXPERIMENTAL: EABC admission hook. This is repository-
             t30_3_final_authority_check = getattr(self, "_t30_3_final_authority_check", None)
             if t30_3_final_authority_check is not None:
                 t30_3_final_authority_check()
+            with self._t30_3_reservation_lock:
+                if execution_id in self._t30_3_reserved_execution_ids:
+                    raise PermissionError("EABC_EXECUTION_ALREADY_RESERVED")
+                self._t30_3_reserved_execution_ids.add(execution_id)
 
 '''
 def main():
