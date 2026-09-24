@@ -15,8 +15,7 @@ from eabc_profile.adapter import action_binding_digest, request_digest
 from tests.test_t30_3_runtime_experiment import _make_proxy, _sink_server
 
 
-def _commit(execution_id: str, call_id: str, args: dict, commit_id: str = 'commit-t30-3-1') -> EABCCommit:
-    agent = "t30-3-1-agent"
+def _commit(execution_id: str, call_id: str, args: dict, commit_id: str = "commit-t30-3-1", agent: str = "t30-3-1-agent") -> EABCCommit:
     tool = "test.effect"
     policy = "t30.3.1-policy"
     request_hash = request_digest(tool, args)
@@ -48,7 +47,7 @@ async def test_t30_3_1_revocation_between_admission_and_forwarding(tmp_path: Pat
         execution_id = "exec-t30-3-1-revoke"
         args = {"destination": "revoke", "value": 1}
         proxy._t30_3_adapter = EABCMCPAdapter()
-        proxy._t30_3_commit = _commit(execution_id, "call-revoke", args)
+        proxy._t30_3_commit = _commit(execution_id, "call-revoke", args, agent=proxy._session.session_id)
         proxy._t30_3_policy_id = "t30.3.1-policy"
         authority = {"valid": True}
 
