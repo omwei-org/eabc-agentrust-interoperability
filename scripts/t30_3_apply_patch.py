@@ -8,7 +8,8 @@ HOOK = '''        # T30.3 EXPERIMENTAL: EABC admission hook. This is repository-
         # code and is not native cMCP enforcement.
         t30_3_adapter = getattr(self, "_t30_3_adapter", None)
         t30_3_commit = getattr(self, "_t30_3_commit", None)
-        if execution_id is not None and t30_3_adapter is not None:
+        t30_3_hook_enabled = not getattr(self, "_t30_3_disable_hook", False)
+        if execution_id is not None and t30_3_adapter is not None and t30_3_hook_enabled:
             if t30_3_commit is None:
                 return self._refuse_execution(
                     _finalization, entry, call_id, tool_name, request_payload_hash,
@@ -28,6 +29,9 @@ HOOK = '''        # T30.3 EXPERIMENTAL: EABC admission hook. This is repository-
             t30_3_before_forward = getattr(self, "_t30_3_before_forward", None)
             if t30_3_before_forward is not None:
                 t30_3_before_forward()
+            t30_3_final_authority_check = getattr(self, "_t30_3_final_authority_check", None)
+            if t30_3_final_authority_check is not None:
+                t30_3_final_authority_check()
 
 '''
 def main():
