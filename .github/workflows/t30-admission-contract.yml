@@ -1,0 +1,23 @@
+name: T30 EABC admission seam contract
+
+on:
+  push:
+    branches:
+      - t29-3-execution-binding
+  workflow_dispatch:
+
+jobs:
+  t30:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+      - name: Run protocol contract tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest -q tests/test_t29_3_execution_binding.py tests/test_t29_4_execution_admission.py tests/test_t30_admission_contract.py
