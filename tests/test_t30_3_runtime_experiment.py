@@ -82,7 +82,15 @@ def _sink_server(sink: Path):
                     "tool_name": params["name"],
                     "arguments": params.get("arguments", {}),
                 }
-                raw = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()\n                event["event_sha256"] = hashlib.sha256(raw).hexdigest()\n                record = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()\n                with sink.open("ab") as f:\n                    f.write(record + b"\\n")\n                    f.flush()\n                    import os\n                    os.fsync(f.fileno())\n                body = {
+                raw = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
+                event["event_sha256"] = hashlib.sha256(raw).hexdigest()
+                record = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
+                with sink.open("ab") as f:
+                    f.write(record + b"\n")
+                    f.flush()
+                    import os
+                    os.fsync(f.fileno())
+                body = {
                     "jsonrpc": "2.0",
                     "id": request["id"],
                     "result": {"content": [{"type": "text", "text": "sink:accepted"}]},
