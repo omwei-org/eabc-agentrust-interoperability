@@ -1,0 +1,30 @@
+name: T29 forwarding bypass experiment
+
+on:
+  push:
+    branches:
+      - t28-cmcp-eabc-property-mapping
+  workflow_dispatch:
+
+jobs:
+  t29:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone cMCP v0.5.0
+        run: |
+          git clone --branch v0.5.0 --depth 1 https://github.com/agentrust-io/cmcp.git upstream/cmcp
+          git -C upstream/cmcp rev-parse HEAD
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cMCP
+        working-directory: upstream/cmcp
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run T29
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: pytest -q tests/test_t29_forwarding_bypass.py
