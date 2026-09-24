@@ -25,17 +25,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip pytest
           pip install -e "upstream/cmcp[dev]"
+      - name: Run native cMCP baseline before patch
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: |
+          mkdir -p evidence/t30-3
+          pytest -q tests/test_t30_3_1_native_baseline.py | tee evidence/t30-3/native-baseline.txt
+
       - name: Apply disposable T30.3 runtime patch
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python scripts/t30_3_apply_patch.py
-      - name: Run T30.3 preflight and observable tests
+
+      - name: Run T30.3 and T30.3.1 experimental tests
         env:
           PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
         run: |
           pytest -q tests/test_t30_3_preflight.py
           pytest -q tests/test_t30_3_runtime_experiment.py
-          pytest -q tests/test_t30_3_1_toctou_concurrency.py
+          pytest -q tests/test_t30_3_1_toctou_concurrency.py | tee evidence/t30-3/experimental-results.txt
       - name: Build evidence manifest
         if: always()
         run: |
