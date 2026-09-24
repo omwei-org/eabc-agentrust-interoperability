@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 PIN = "f8743e013786b094caaa70c336519834e73c74d5"
@@ -29,9 +30,19 @@ def test_t31_single_production_tool_forwarding_transition() -> None:
     # The production method is the sole source-level invocation of the
     # forwarding helper in the runtime implementation. Tests/benchmarks may
     # call or monkeypatch this private helper, but are not production ingress.
-    production = proxy.split("class CMCPProxy", 1)[1]
-    assert production.count("await self._forward_to_upstream(") == 1
-    assert "await self._forward_to_upstream(" in production
+    tree = ast.parse(proxy)
+    proxy_class = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "CMCPProxy"
+    )
+    call_sites = [
+        node for node in ast.walk(proxy_class)
+        if isinstance(node, ast.Await)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Attribute)
+        and node.value.func.attr == "_forward_to_upstream"
+    ]
+    assert len(call_sites) == 1
 
 
 def test_t31_forwarding_covers_both_transport_branches() -> None:
@@ -49,9 +60,17 @@ def test_t31_no_alternate_production_upstream_http_client_path() -> None:
     # HTTP client construction and POST are confined to the forwarding helper
     # in the runtime implementation. Discovery is intentionally excluded from
     # the declared consequence: tools/list acquisition is not tools/call effect.
-    forward = proxy.split("    async def _forward_to_upstream(", 1)[1]
-    assert "await client.post(entry.server.url, json=payload, headers=headers)" in forward
-    before_forward = proxy.split("    async def _forward_to_upstream(", 1)[0]
+    tree = ast.parse(proxy)
+    proxy_class = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "CMCPProxy")
+    forward = next(
+        node for node in proxy_class.body
+        if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
+        and node.name == "_forward_to_upstream"
+    )
+    source_lines = proxy.splitlines()
+    forward_source = "\n".join(source_lines[forward.lineno - 1:forward.end_lineno])
+    assert "await client.post(entry.server.url, json=payload, headers=headers)" in forward_source
+    before_forward = "\n".join(source_lines[:forward.lineno - 1])
     assert "await client.post(entry.server.url, json=payload, headers=headers)" not in before_forward
 
 
