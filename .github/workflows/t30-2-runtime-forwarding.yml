@@ -1,0 +1,23 @@
+name: T30.2 runtime forwarding admission
+
+on:
+  push:
+    branches:
+      - t29-3-execution-binding
+  workflow_dispatch:
+
+jobs:
+  t30-2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+      - name: Run runtime admission tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest -q tests/test_t30_2_runtime_forwarding.py
