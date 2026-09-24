@@ -15,13 +15,13 @@ from eabc_profile.adapter import action_binding_digest, request_digest
 from tests.test_t30_3_runtime_experiment import _make_proxy, _sink_server
 
 
-def _commit(execution_id: str, call_id: str, args: dict) -> EABCCommit:
+def _commit(execution_id: str, call_id: str, args: dict, commit_id: str = 'commit-t30-3-1') -> EABCCommit:
     agent = "t30-3-1-agent"
     tool = "test.effect"
     policy = "t30.3.1-policy"
     request_hash = request_digest(tool, args)
     return EABCCommit(
-        commit_id="commit-t30-3-1",
+        commit_id=commit_id,
         agent_identity=agent,
         execution_id=execution_id,
         call_id=call_id,
@@ -79,7 +79,7 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
         execution_id = "exec-t30-3-1-concurrent"
         args = {"destination": "concurrent", "value": 2}
         proxy._t30_3_adapter = EABCMCPAdapter()
-        proxy._t30_3_commit = _commit(execution_id, "call-concurrent", args)
+        commits = [_commit(execution_id, "call-concurrent-1", args, "commit-t30-3-1-a"), _commit(execution_id, "call-concurrent-2", args, "commit-t30-3-1-b")]
         proxy._t30_3_policy_id = "t30.3.1-policy"
 
         barrier = threading.Barrier(2)
@@ -90,13 +90,14 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
         proxy._t30_3_before_forward = before_forward
         proxy._t30_3_final_authority_check = lambda: None
 
-        def invoke():
+        def invoke(commit):
             async def run():
                 from unittest.mock import patch
+                proxy._t30_3_commit = commit
                 with patch.object(proxy, "_check_health", return_value=None):
                     try:
                         await proxy.call_tool(
-                            "call-concurrent", "test.effect", args, execution_id=execution_id
+                            commit.call_id, "test.effect", args, execution_id=execution_id
                         )
                         return "effect"
                     except PermissionError as exc:
@@ -107,7 +108,7 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
         results = [None, None]
 
         def worker(i):
-            results[i] = invoke()
+            results[i] = invoke(commits[i])
 
         threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
         for t in threads:
@@ -118,7 +119,7 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
         assert all(not t.is_alive() for t in threads)
         assert results.count("effect") == 1
         assert len(sink.read_text().splitlines()) == 1
-        assert "EABC_COMMIT_REPLAY" in results or "EABC_COMMIT_SUBSTITUTION" in results
+        assert "EABC_EXECUTION_ALREADY_RESERVED" in results
     finally:
         server.shutdown()
 
