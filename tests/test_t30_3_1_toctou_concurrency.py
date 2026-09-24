@@ -122,6 +122,48 @@ def test_t30_3_1_concurrent_same_execution_id_allows_at_most_one_effect(tmp_path
         server.shutdown()
 
 
+def test_t30_3_1_control_same_concurrency_without_eabc_hook(tmp_path: Path):
+    """Experimental control: same patched admission path with EABC hook disabled.
+
+    This is not native cMCP. The disposable patch deliberately admits a valid
+    execution_id so this control can isolate the incremental EABC gate.
+    """
+    sink = tmp_path / "control.jsonl"
+    server, url = _sink_server(sink)
+    try:
+        execution_id = "exec-t30-3-1-control"
+        args = {"destination": "control", "value": 3}
+        commits = [
+            _commit(execution_id, "call-control-1", args, "commit-t30-3-1-control-a"),
+            _commit(execution_id, "call-control-2", args, "commit-t30-3-1-control-b"),
+        ]
+        barrier = threading.Barrier(2)
+
+        def invoke(commit):
+            async def run():
+                from unittest.mock import patch
+                proxy = _make_proxy(url)
+                proxy._session.session_id = "t30-3-1-agent"
+                proxy._t30_3_disable_hook = True
+                proxy._t30_3_before_forward = barrier.wait
+                with patch.object(proxy, "_check_health", return_value=None):
+                    await proxy.call_tool(
+                        commit.call_id, "test.effect", args, execution_id=execution_id
+                    )
+            return asyncio.run(run())
+
+        threads = [threading.Thread(target=invoke, args=(commit,)) for commit in commits]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=15)
+
+        assert all(not t.is_alive() for t in threads)
+        assert len(sink.read_text().splitlines()) == 2
+    finally:
+        server.shutdown()
+
+
 def test_t30_3_1_evidence_record_shape(tmp_path: Path):
     evidence = {
         "experiment": "T30.3.1",
