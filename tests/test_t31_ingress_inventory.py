@@ -23,6 +23,19 @@ def test_t31_pin_and_production_mcp_ingress() -> None:
     assert "return await self._handle_tool_call(rpc_id, params)" in server
     assert "result = await self._proxy.call_tool(" in server
 
+    tree = ast.parse(server)
+    server_class = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "MCPServer")
+    init = next(n for n in server_class.body if isinstance(n, ast.FunctionDef) and n.name == "__init__")
+    assert any(
+        isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Name)
+        and n.func.id == "Route"
+        and len(n.args) >= 2
+        and isinstance(n.args[0], ast.Constant)
+        and n.args[0].value == "/mcp"
+        for n in ast.walk(init)
+    )
+
 
 def test_t31_single_production_tool_forwarding_transition() -> None:
     proxy = _read("src/cmcp_runtime/mcp/proxy.py")
