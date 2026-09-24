@@ -1,0 +1,23 @@
+name: T29.3 execution binding
+
+on:
+  push:
+    branches:
+      - t29-3-execution-binding
+  workflow_dispatch:
+
+jobs:
+  t29-3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+      - name: Run T29.3 adapter tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest -q tests/test_t29_3_execution_binding.py
