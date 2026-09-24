@@ -41,6 +41,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
         run: |
+          set -o pipefail
           pytest -q tests/test_t30_3_preflight.py
           pytest -q tests/test_t30_3_runtime_experiment.py
           pytest -q tests/test_t30_3_1_toctou_concurrency.py | tee evidence/t30-3/experimental-results.txt
