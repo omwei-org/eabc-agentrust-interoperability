@@ -1,0 +1,7 @@
+{
+  "profile":{"id":"eabc-mcp","version":"0.1-experimental"},
+  "upstream":{"repository":"agentrust-io/cmcp","version":"v0.5.0","source_revision":"d03b9af504535d3d43f192bc6d9eff89b8afd12f"},
+  "base_repository_revision":"d6ec83d79f2a473823c20fdfeb3d63ac1cc121e5",
+  "t26":{"finalization_run":"35898242024","manifest_artifact":"10768390571","manifest_digest":"sha256:09fdc31e8d72526b1e296061ca3f24be6963b22e1411730833c17aeb7d73bdc4"},
+  "claims":{"profile_conformance":"EXPERIMENTAL_PASS","native_cmcp_conformance":"NOT_CLAIMED"}
+}

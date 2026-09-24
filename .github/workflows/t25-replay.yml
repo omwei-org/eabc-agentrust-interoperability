@@ -2,7 +2,8 @@ name: T25.5 replay binding
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

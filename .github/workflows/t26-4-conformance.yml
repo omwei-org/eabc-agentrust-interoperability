@@ -2,7 +2,8 @@ name: T26.4 unified conformance
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

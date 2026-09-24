@@ -1,0 +1,19 @@
+name: T27.6 reproduction manifest
+on:
+  workflow_dispatch:
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python tools/build_t27_manifest.py
+      - run: python -m pip install pytest
+      - run: pytest -q tests/test_t27_6_manifest.py
+      - run: cat evidence/t27-reproduction-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: t27-reproduction-manifest
+          path: evidence/t27-reproduction-manifest.json
+          if-no-files-found: error

@@ -2,7 +2,8 @@ name: T25.8 native adapter boundary
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

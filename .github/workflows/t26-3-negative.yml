@@ -2,7 +2,8 @@ name: T26.3 negative profile conformance
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
