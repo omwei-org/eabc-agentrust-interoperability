@@ -30,6 +30,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
         run: |
           mkdir -p evidence/t30-3
+          set -o pipefail
           pytest -q tests/test_t30_3_1_native_baseline.py | tee evidence/t30-3/native-baseline.txt
 
       - name: Apply disposable T30.3 runtime patch
