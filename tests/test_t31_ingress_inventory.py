@@ -71,7 +71,7 @@ def test_t31_single_production_tool_forwarding_transition() -> None:
     assert any(
         isinstance(node, ast.AsyncFunctionDef)
         and node.name == "_handle_tool_call"
-        and any(call.lineno == call_tool_sites[0].lineno for call in ast.walk(node))
+        and any(isinstance(call, ast.Await) and call.lineno == call_tool_sites[0].lineno for call in ast.walk(node))
         for node in server_class.body
     )
 
