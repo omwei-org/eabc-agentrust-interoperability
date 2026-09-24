@@ -69,8 +69,26 @@ def main() -> None:
         node for node in server_class.body
         if isinstance(node, ast.FunctionDef) and node.name == "__init__"
     )
-    route_text = ast.get_source_segment(server_source, mcp_route) or ""
-    has_mcp_post_route = 'Route("/mcp", self._handle_mcp, methods=["POST"])' in route_text
+    route_calls = [
+        node for node in ast.walk(mcp_route)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "Route"
+    ]
+    has_mcp_post_route = any(
+        len(node.args) >= 2
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == "/mcp"
+        and isinstance(node.args[1], ast.Attribute)
+        and node.args[1].attr == "_handle_mcp"
+        and any(
+            kw.arg == "methods"
+            and isinstance(kw.value, ast.List)
+            and any(isinstance(item, ast.Constant) and item.value == "POST" for item in kw.value.elts)
+            for kw in node.keywords
+        )
+        for node in route_calls
+    )
     handle_mcp = next(node for node in server_class.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "_handle_mcp")
     handle_tool = next(node for node in server_class.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "_handle_tool_call")
     call_tool_awaits = [
