@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 import pytest
+from cmcp_runtime.mcp.proxy import CMCPProxy
 def _sink_server(sink: Path):
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):  # noqa: N802
