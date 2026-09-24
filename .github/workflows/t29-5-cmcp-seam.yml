@@ -1,0 +1,35 @@
+name: T29.5 cMCP seam characterization
+
+on:
+  push:
+    branches:
+      - t29-3-execution-binding
+  workflow_dispatch:
+
+jobs:
+  t29-5:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone cMCP characterization revision
+        run: |
+          git clone https://github.com/agentrust-io/cmcp.git upstream/cmcp
+          git -C upstream/cmcp checkout f8743e013786b094caaa70c336519834e73c74d5
+          test "$(git -C upstream/cmcp rev-parse HEAD)" = "f8743e013786b094caaa70c336519834e73c74d5"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cMCP
+        working-directory: upstream/cmcp
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run cMCP execution-correlation characterization
+        working-directory: upstream/cmcp
+        run: pytest -q tests/unit/test_execution_correlation_call_path.py
+      - name: Run EABC protocol tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          pytest -q tests/test_t29_3_execution_binding.py tests/test_t29_4_execution_admission.py
