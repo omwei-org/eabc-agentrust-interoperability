@@ -37,9 +37,9 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
         run: |
-          mkdir -p evidence/t31
+          mkdir -p evidence/t30-3/t31
           set -o pipefail
-          pytest -q tests/test_t31_ingress_inventory.py | tee evidence/t31/test-results.txt
+          pytest -q tests/test_t31_ingress_inventory.py | tee evidence/t30-3/t31/test-results.txt
           python scripts/build_t31_evidence.py
 
       - name: Apply disposable T30.3 runtime patch
