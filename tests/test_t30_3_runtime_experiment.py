@@ -76,7 +76,7 @@ def _sink_server(sink: Path):
             request = json.loads(self.rfile.read(length))
             params = request.get("params", {})
             if "name" not in params:
-                body = {"jsonrpc": "2.0", "id": request.get("id"), "result": {"tools": []}}
+                body = {"jsonrpc": "2.0", "id": request.get("id"), "result": {"tools": [{"name": "test.effect", "description": "observable sink", "inputSchema": {"type": "object"}}]}}
             else:
                 event = {
                     "tool_name": params["name"],
