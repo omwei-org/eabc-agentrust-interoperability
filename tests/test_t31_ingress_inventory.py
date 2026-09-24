@@ -44,6 +44,24 @@ def test_t31_single_production_tool_forwarding_transition() -> None:
     ]
     assert len(call_sites) == 1
 
+    server = _read("src/cmcp_runtime/mcp/server.py")
+    server_tree = ast.parse(server)
+    server_class = next(node for node in server_tree.body if isinstance(node, ast.ClassDef) and node.name == "MCPServer")
+    call_tool_sites = [
+        node for node in ast.walk(server_class)
+        if isinstance(node, ast.Await)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Attribute)
+        and node.value.func.attr == "call_tool"
+    ]
+    assert len(call_tool_sites) == 1
+    assert any(
+        isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "_handle_tool_call"
+        and any(call.lineno == call_tool_sites[0].lineno for call in ast.walk(node))
+        for node in server_class.body
+    )
+
 
 def test_t31_forwarding_covers_both_transport_branches() -> None:
     proxy = _read("src/cmcp_runtime/mcp/proxy.py")
