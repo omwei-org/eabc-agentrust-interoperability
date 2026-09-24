@@ -110,6 +110,30 @@ def main() -> None:
     forward_lines = class_method_lines(proxy_source, "CMCPProxy", "_forward_to_upstream")
     forward_call_sites = await_attr_calls(proxy_source, "CMCPProxy", "_forward_to_upstream")
 
+    proxy_tree = ast.parse(proxy_source)
+    proxy_class = next(
+        node for node in proxy_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "CMCPProxy"
+    )
+    forward_method = next(
+        node for node in proxy_class.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_forward_to_upstream"
+    )
+    upstream_http_posts = [
+        node.lineno for node in ast.walk(forward_method)
+        if isinstance(node, ast.Await)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Attribute)
+        and node.value.func.attr == "post"
+    ]
+    upstream_stdio_calls = [
+        node.lineno for node in ast.walk(forward_method)
+        if isinstance(node, ast.Await)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Attribute)
+        and node.value.func.attr == "call"
+    ]
+
     record = {
         "experiment": "T31",
         "upstream_repository": "agentrust-io/cmcp",
@@ -123,6 +147,10 @@ def main() -> None:
         ],
         "common_forwarding_transition": "CMCPProxy.call_tool -> _forward_to_upstream",
         "transport_branches": ["http", "stdio"],
+        "transport_ast_checks": {
+            "single_http_post_in_forwarding_helper": len(upstream_http_posts) == 1,
+            "single_stdio_call_in_forwarding_helper": len(upstream_stdio_calls) == 1,
+        },
         "ingress_source_locations": {
             "MCPServer.__init__": {"start_line": mcp_route.lineno, "end_line": mcp_route.end_lineno},
             "MCPServer._handle_mcp": {"start_line": handle_mcp.lineno, "end_line": handle_mcp.end_lineno},
@@ -143,12 +171,16 @@ def main() -> None:
             "CMCPProxy.call_tool": {"start_line": call_tool_lines[0], "end_line": call_tool_lines[1]},
             "CMCPProxy._forward_to_upstream": {"start_line": forward_lines[0], "end_line": forward_lines[1]},
             "await _forward_to_upstream call_sites": forward_call_sites,
+            "await HTTP client.post sites": upstream_http_posts,
+            "await stdio server.call sites": upstream_stdio_calls,
         },
         "alternate_production_ingress_identified": not (
             has_mcp_post_route
             and bool(handle_tool_dispatches)
             and len(call_tool_awaits) == 1
             and len(forward_call_sites) == 1
+            and len(upstream_http_posts) == 1
+            and len(upstream_stdio_calls) == 1
         ),
         "claim_scope": "inspected pinned runtime surface",
         "methodology": "AST/source inspection of pristine pinned checkout before disposable T30.3 patch",
