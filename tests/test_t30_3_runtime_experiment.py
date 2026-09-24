@@ -74,20 +74,23 @@ def _sink_server(sink: Path):
         def do_POST(self):  # noqa: N802
             length = int(self.headers.get("Content-Length", "0"))
             request = json.loads(self.rfile.read(length))
-            params = request["params"]
-            event = {
-                "tool_name": params["name"],
-                "arguments": params.get("arguments", {}),
-            }
-            raw = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
-            with sink.open("ab") as f:
-                f.write(raw + b"\\n")
-                f.flush()
-            body = {
-                "jsonrpc": "2.0",
-                "id": request["id"],
-                "result": {"content": [{"type": "text", "text": "sink:accepted"}]},
-            }
+            params = request.get("params", {})
+            if "name" not in params:
+                body = {"jsonrpc": "2.0", "id": request.get("id"), "result": {"tools": []}}
+            else:
+                event = {
+                    "tool_name": params["name"],
+                    "arguments": params.get("arguments", {}),
+                }
+                raw = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
+                with sink.open("ab") as f:
+                    f.write(raw + b"\\n")
+                    f.flush()
+                body = {
+                    "jsonrpc": "2.0",
+                    "id": request["id"],
+                    "result": {"content": [{"type": "text", "text": "sink:accepted"}]},
+                }
             payload = json.dumps(body).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
