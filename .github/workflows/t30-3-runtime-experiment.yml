@@ -1,0 +1,48 @@
+name: T30.3 actual cMCP runtime experiment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - t29-3-execution-binding
+
+jobs:
+  t30-3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone execution-correlation revision
+        run: |
+          git clone https://github.com/agentrust-io/cmcp.git upstream/cmcp
+          git -C upstream/cmcp checkout f8743e013786b094caaa70c336519834e73c74d5
+          git -C upstream/cmcp rev-parse HEAD
+          git -C upstream/cmcp tag --points-at HEAD || true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip pytest
+          pip install -e 'upstream/cmcp[dev]'
+      - name: Run T30.3 preflight and harness
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: |
+          pytest -q tests/test_t30_3_preflight.py
+          pytest -q tests/test_t30_3_runtime_experiment.py
+      - name: Build evidence manifest
+        if: always()
+        run: |
+          mkdir -p evidence/t30-3
+          git rev-parse HEAD > evidence/t30-3/experiment-commit.txt
+          git -C upstream/cmcp rev-parse HEAD > evidence/t30-3/upstream-commit.txt
+          git -C upstream/cmcp tag --points-at HEAD > evidence/t30-3/upstream-tags.txt || true
+          sha256sum evidence/t30-3/* > evidence/t30-3/SHA256SUMS
+          cat evidence/t30-3/SHA256SUMS
+      - name: Upload T30.3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t30-3-evidence
+          path: evidence/t30-3/
