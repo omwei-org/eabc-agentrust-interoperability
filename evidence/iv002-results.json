@@ -1,0 +1,31 @@
+{
+  "experiment": "IV-002",
+  "version": "0.1",
+  "status": "COMPLETED",
+  "classification": "controlled_analytical_test",
+  "overall_result": "ARCHITECTURE_HYPOTHESIS_SUPPORTED",
+  "production_interoperability": "NOT_ESTABLISHED",
+  "cases": [
+    {"id":"E1","name":"nominal","observed":"CORRELATED","pass":true},
+    {"id":"E2","name":"divergence","observed":"CORRELATED","secondary_state":"EXECUTION_DIVERGENCE","pass":true},
+    {"id":"E3","name":"missing_binding","observed":"UNRESOLVED","pass":true},
+    {"id":"E4","name":"contradiction","observed":"NOT_CORRELATED","pass":true},
+    {"id":"E5","name":"controller_rejection","observed":"CORRELATED","secondary_state":"REJECTED","pass":true},
+    {"id":"E6","name":"integrity_failure","observed":"INTEGRITY_FAILURE","secondary_state":"UNDETERMINED","pass":true}
+  ],
+  "summary": {"total_cases":6,"passed":6,"failed":0},
+  "validated_properties": [
+    "correlation_without_shared_identifier",
+    "correlation_distinct_from_execution_consistency",
+    "correlation_distinct_from_execution_success",
+    "missing_binding_remains_unresolved",
+    "contradiction_blocks_correlation",
+    "integrity_failure_is_distinct_from_non_correlation"
+  ],
+  "non_claims": [
+    "native_TRACE_EABC_interoperability",
+    "production_transaction_interoperability",
+    "physical_effect_verification",
+    "bypass_resistance"
+  ]
+}
