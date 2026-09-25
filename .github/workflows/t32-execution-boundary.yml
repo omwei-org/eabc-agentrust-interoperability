@@ -1,0 +1,36 @@
+name: T32 execution-boundary exclusivity
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - t32-execution-boundary-exclusivity
+
+jobs:
+  t32:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone pinned cMCP
+        run: |
+          git clone https://github.com/agentrust-io/cmcp.git upstream/cmcp
+          git -C upstream/cmcp checkout f8743e013786b094caaa70c336519834e73c74d5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip pytest
+          pip install -e "upstream/cmcp[dev]"
+      - name: Run T31 inventory
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: pytest -q tests/test_t31_ingress_inventory.py
+      - name: Apply disposable T32 patch
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python scripts/t32_apply_patch.py
+      - name: Run T32
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: pytest -q tests/test_t32_execution_boundary_exclusivity.py
