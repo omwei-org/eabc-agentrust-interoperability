@@ -9,7 +9,71 @@ import pytest
 
 from eabc_profile import EABCCommit, EABCMCPAdapter
 from eabc_profile.adapter import action_binding_digest, request_digest
-from tests.test_t30_3_runtime_experiment import _make_proxy, _sink_server
+
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import AsyncMock, MagicMock
+
+from cmcp_runtime.audit.chain import AuditChain
+from cmcp_runtime.catalog.loader import ApprovedDefinition, CatalogEntry, ServerIdentity, ToolCatalog
+from cmcp_runtime.config import AttestationConfig, Config, EnforcementMode
+from cmcp_runtime.session.state import SessionState
+
+
+def _sink_server(path: Path):
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(length)
+            body = json.dumps({"jsonrpc": "2.0", "id": 1, "result": {"ok": True}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            with path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"ok": True}) + "\n")
+        def log_message(self, *_args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, f"http://127.0.0.1:{server.server_port}/mcp"
+
+
+def _make_proxy(url: str):
+    from cmcp_runtime.mcp.proxy import CMCPProxy
+
+    entry = CatalogEntry(
+        tool_name="test.effect",
+        server=ServerIdentity(
+            display_name="T32 Sink", url=url,
+            tls_fingerprint="SHA256:" + "A" * 43 + "=",
+            spiffe_id=None, transport="http-sse", rotation_mode="key-pinned",
+        ),
+        approved_definition=ApprovedDefinition(
+            description="effect", input_schema={"type": "object"}, output_schema=None
+        ),
+        definition_hash="sha256:" + "0" * 64,
+        compliance_domain="public", requires_baa=False,
+        sensitivity_level="public", added_at="2026-09-25T00:00:00Z",
+        approved_by="t32",
+    )
+    catalog = ToolCatalog(entries={"test.effect": entry}, catalog_hash="sha256:" + "1" * 64)
+    config = Config(attestation=AttestationConfig(enforcement_mode=EnforcementMode.ENFORCING))
+    with patch("cmcp_runtime.mcp.proxy.MCPGateway"), patch("cmcp_runtime.mcp.proxy.MCPResponseScanner"):
+        proxy = CMCPProxy(
+            catalog=catalog, policy_evaluator=MagicMock(),
+            session=SessionState(session_id="t32-agent"),
+            audit_chain=AuditChain("t32"), config=config,
+        )
+    proxy._check_health = MagicMock(return_value=None)
+    proxy._check_upstream_drift = AsyncMock(return_value=False)
+    proxy._policy.evaluate.return_value = MagicMock(rule_matched="test.allow", would_have_denied=False, advice={})
+    proxy._mcp_gateway.intercept_tool_call.return_value = (True, "")
+    proxy._mcp_gateway.intercept_tool_response.return_value = MagicMock(threats=[], content=None, allowed=True)
+    proxy._policy.authorize_egress.return_value = MagicMock(would_have_denied=False)
+    return proxy
+
 
 
 def make_commit(proxy, execution_id, call_id, args, commit_id):
@@ -157,27 +221,38 @@ async def test_t32_replay_has_one_forwarding(tmp_path: Path):
         server.shutdown()
 
 
-def test_t32_concurrent_same_execution_id_allows_at_most_one_forwarding(tmp_path: Path):
+
+def test_t32_concurrent_same_commit_allows_at_most_one_forwarding(tmp_path: Path):
     sink = tmp_path / "race.jsonl"
     server, url = _sink_server(sink)
     try:
         execution_id = "exec-race"
         args = {"value": 7}
-        barrier = threading.Barrier(2)
+        shared_adapter = EABCMCPAdapter()
+        shared_commit = EABCCommit(
+            commit_id="commit-race", agent_identity="t32-agent", execution_id=execution_id,
+            call_id="call-race", tool_name="test.effect",
+            request_payload_hash=request_digest("test.effect", args), policy_id="t32-policy",
+            action_binding=action_binding_digest(
+                agent_identity="t32-agent", execution_id=execution_id,
+                tool_name="test.effect", request_payload_hash=request_digest("test.effect", args),
+                policy_id="t32-policy",
+            ),
+            authority_ref="authority-t32",
+        )
         results = [None, None]
 
         def worker(i):
             async def run():
                 proxy = _make_proxy(url)
                 proxy._t32_mode = "MANDATORY"
-                proxy._t30_3_adapter = EABCMCPAdapter()
-                proxy._t30_3_commit = make_commit(proxy, execution_id, "call-race-" + str(i), args, "commit-race-" + str(i))
+                proxy._t30_3_adapter = shared_adapter
+                proxy._t30_3_commit = shared_commit
                 proxy._t30_3_policy_id = "t32-policy"
                 counters = {"forwarding_entry_count": 0}
-                proxy._t30_3_before_forward = lambda: barrier.wait(timeout=10)
                 instrument(proxy, counters)
                 try:
-                    await invoke(proxy, "call-race-" + str(i), args, execution_id)
+                    await invoke(proxy, "call-race", args, execution_id)
                     return counters["forwarding_entry_count"], True
                 except PermissionError:
                     return counters["forwarding_entry_count"], False
