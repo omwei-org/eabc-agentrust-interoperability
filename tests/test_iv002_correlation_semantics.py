@@ -43,14 +43,13 @@ def correlate(left: Evidence, right: Evidence) -> tuple[Correlation, str | None]
     if left.execution_context != right.execution_context:
         return Correlation.UNRESOLVED, None
 
-    if left.action_identity != right.action_identity:
-        return Correlation.UNRESOLVED, None
-
     if left.timestamp != right.timestamp:
         return Correlation.UNRESOLVED, None
 
     secondary = None
-    if left.execution_divergence or right.execution_divergence:
+    if left.action_identity != right.action_identity:
+        secondary = "EXECUTION_DIVERGENCE"
+    elif left.execution_divergence or right.execution_divergence:
         secondary = "EXECUTION_DIVERGENCE"
     elif left.rejected or right.rejected:
         secondary = "REJECTED"
@@ -78,18 +77,10 @@ def test_iv002_e2_correlation_is_distinct_from_execution_consistency():
         "applied-action-different",
         right.timestamp,
         right.execution_context,
-        execution_divergence=True,
     )
 
-    # The test bridge supplies the execution-trajectory binding separately;
-    # action divergence is therefore represented as a secondary state.
-    left = Evidence(
-        left.execution_identity,
-        left.action_identity,
-        left.timestamp,
-        left.execution_context,
-        execution_divergence=True,
-    )
+    # Correlation binds the execution trajectory; it does not assert that
+    # the committed action and the applied action are identical.
     result = correlate(left, right)
     assert result == (Correlation.CORRELATED, "EXECUTION_DIVERGENCE")
 
