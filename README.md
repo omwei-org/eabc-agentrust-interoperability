@@ -65,8 +65,20 @@ Every substantive result should identify:
 
 ABSENT and GAP are kept distinct.
 
+## Current execution-boundary status
+
+The current experimental sequence has established:
+
+- **T31 — Common seam:** the inspected pinned cMCP runtime has one identified common production forwarding transition for the declared HTTP and stdio tool-call consequences.
+- **T32 — Exclusivity:** a disposable runtime experiment demonstrates that EABC admission can gate that forwarding transition under two explicit profiles: OPTIONAL (legacy non-correlated calls remain allowed) and MANDATORY (every tool call requires EABC admission).
+- **T33 — Native integration contract:** a proposed transport-independent contract now defines the minimum semantics required for a future native cMCP/AgenTrust ↔ EABC integration.
+
+T33 is a **proposed contract, not native cMCP conformance**. It does not claim that upstream cMCP currently requires or implements EABC.
+
+See: `docs/058-t32-execution-boundary-exclusivity.md` and `docs/059-t33-native-integration-contract.md`.
+
 ## Status
 
-**Phase 0 — repository and CI baseline.**
+**Experimental execution-boundary phase — T31/T32/T33.**
 
-The first CI job will pin cMCP v0.5.0, run the upstream unit-test baseline, and record the environment and result before EABC-specific tests are introduced.
+T31/T32 provide experimental seam and exclusivity evidence against pinned cMCP source. T33 records the proposed native integration contract. Native cMCP conformance remains **NOT_CLAIMED**.
