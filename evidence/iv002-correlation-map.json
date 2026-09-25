@@ -1,0 +1,30 @@
+{
+  "schema": "iv-002-correlation-map",
+  "version": "0.1",
+  "classification": "controlled_test_bridge",
+  "purpose": "Define the analytical relationships used to evaluate cross-domain evidence correlation.",
+  "claim_boundary": {
+    "native_trace_eabc_interoperability": false,
+    "shared_identifier_required": false,
+    "production_transaction_contract": false
+  },
+  "domains": {
+    "trace": {"role":"agent_runtime_action_governance_evidence"},
+    "eabc": {"role":"execution_authority_commit_execution_boundary_evidence"}
+  },
+  "correlation_dimensions": [
+    "execution_identity",
+    "action_identity",
+    "temporal_consistency",
+    "execution_context",
+    "integrity_provenance"
+  ],
+  "relationship_model": {
+    "principle":"provable_relationship_not_common_identifier",
+    "shared_identifier_required":false,
+    "positive_correlation_requires_sufficient_evidence":true,
+    "contradictory_evidence_blocks_correlation":true,
+    "missing_decisive_evidence_produces_unresolved":true,
+    "integrity_failure_is_distinct_from_non_correlation":true
+  }
+}
