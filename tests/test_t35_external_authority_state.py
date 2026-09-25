@@ -191,7 +191,7 @@ async def test_t35_f_two_boundaries_same_authoritative_revocation(tmp_path):
     try:
         p1=_proxy(url); p2=_proxy(url); src.revoke()
         for i,p in enumerate((p1,p2)):
-            setup(p,FailClosedAuthority(src),_commit(p,2,f"e-f-{i}",f"c-f-{i}",{"v":6},f"m-f-{i}"))
+            setup(p,FailClosedAuthority(src),_commit(p,1,f"e-f-{i}",f"c-f-{i}",{"v":6},f"m-f-{i}"))
         counts=[{"forwarding":0},{"forwarding":0}]
         instrument(p1,counts[0]); instrument(p2,counts[1])
         results=await asyncio.gather(
