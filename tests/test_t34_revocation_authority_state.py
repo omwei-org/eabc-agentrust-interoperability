@@ -187,7 +187,7 @@ def test_t34_e_concurrent_race_with_revocation(tmp_path):
         for p in (p1,p2):
             p._t34_authority_epoch=state.epoch; p._t34_adapter=shared
             p._t34_commit=commit; p._t34_policy_id="t34-policy"
-        barrier=threading.Barrier(2); results=[None,None]
+        start=threading.Event(); results=[None,None]
         def worker(i):
             async def run():
                 try:
@@ -195,11 +195,11 @@ def test_t34_e_concurrent_race_with_revocation(tmp_path):
                     return True
                 except PermissionError:
                     return False
-            barrier.wait()
+            start.wait()
             results[i]=asyncio.run(run())
         threads=[threading.Thread(target=worker,args=(i,)) for i in range(2)]
         for t in threads:t.start()
-        barrier.wait()
+        start.set()
         state.revoke()
         for p in (p1,p2): p._t34_authority_epoch=state.epoch
         for t in threads:t.join(timeout=15)
