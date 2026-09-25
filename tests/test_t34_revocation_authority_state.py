@@ -138,7 +138,10 @@ async def test_t34_c_revoked_between_prepare_and_finalize(tmp_path):
         p=_proxy(url); state=AuthorityState()
         p._t34_authority_epoch=state.epoch; p._t34_adapter=EABCMCPAdapter()
         p._t34_commit=_commit(p,1,"exec-c","call-c",{"v":3},"commit-c")
-        p._t34_before_consume=state.revoke
+        def revoke_before_consume():
+            state.revoke()
+            p._t34_authority_epoch=state.epoch
+        p._t34_before_consume=revoke_before_consume
         c={"forwarding_entry_count":0}; _instrument(p,c)
         with pytest.raises(PermissionError,match="EABC_AUTHORITY_EPOCH_MISMATCH"):
             await _invoke(p,"call-c",{"v":3},"exec-c")
