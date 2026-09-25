@@ -1,0 +1,28 @@
+name: T38 atomic authority snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [t32-execution-boundary-exclusivity]
+
+jobs:
+  t38:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone pinned cMCP
+        run: |
+          git clone https://github.com/agentrust-io/cmcp.git upstream/cmcp
+          git -C upstream/cmcp checkout f8743e013786b094caaa70c336519834e73c74d5
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip pytest cryptography
+          pip install -e "upstream/cmcp[dev]"
+      - name: Apply disposable T38 patch
+        run: python scripts/t38_apply_patch.py
+      - name: Run T38
+        env:
+          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
+        run: pytest -q tests/test_t38_atomic_authority_snapshot.py
