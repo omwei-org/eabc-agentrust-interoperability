@@ -55,6 +55,7 @@ class EABCCommit:
     execution_id: str | None = None
     action_binding: str | None = None
     authority_ref: str | None = None
+    authority_epoch: int | None = None
 
 
 class EABCMCPAdapter:
@@ -74,6 +75,7 @@ class EABCMCPAdapter:
         policy_id: str,
         agent_identity: str | None = None,
         execution_id: str | None = None,
+        current_authority_epoch: int | None = None,
     ) -> None:
         with self._lock:
             if commit.commit_id in self._consumed:
@@ -100,8 +102,16 @@ class EABCMCPAdapter:
                 execution_id=execution_id,
                 action_binding=binding,
                 authority_ref=commit.authority_ref,
+                authority_epoch=commit.authority_epoch,
             )
             if candidate != commit:
                 raise PermissionError("EABC_COMMIT_SUBSTITUTION")
+
+            if (
+                current_authority_epoch is not None
+                and commit.authority_epoch is not None
+                and commit.authority_epoch != current_authority_epoch
+            ):
+                raise PermissionError("EABC_AUTHORITY_EPOCH_MISMATCH")
 
             self._consumed.add(commit.commit_id)
