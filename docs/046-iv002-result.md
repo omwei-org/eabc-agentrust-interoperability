@@ -27,19 +27,30 @@ ARGUS does not require a convention such as:
 
 Correlation can instead be established from independently observable relationships across execution identity, action identity, temporal consistency, execution context, and integrity/provenance.
 
+## AgenTrust seam confirmed
+
+Current AgenTrust embodied-action evidence work makes the boundary explicit:
+
+- cMCP `call_id` binds external execution evidence to the gateway audit entry;
+- `action_ref` is a separate content-derived identifier for the action request;
+- controller receipts are external outcome evidence;
+- TRACE action-receipt verification does not by itself prove physical completion or safety.
+
+Therefore IV-002 does not introduce a competing receipt model. It evaluates how an EABC execution-boundary evidence plane can be related to the existing AgenTrust evidence planes.
+
 ## Separation of concerns
 
-**TRACE → evidence**
+**TRACE / cMCP → governed session and action evidence**
 
-**EABC → execution-authority / commit evidence**
+**EABC → execution-authority / commit / execution-boundary evidence**
 
-**Independent observations → evidence**
+**Independent controllers and monitors → outcome observations**
 
 ↓
 
 **ARGUS → correlation / reconstruction / assurance**
 
-The experiment therefore supports an assurance-plane model in which TRACE and EABC can remain semantically independent evidence producers.
+The experiment therefore supports an assurance-plane model in which TRACE/cMCP and EABC can remain semantically independent evidence producers.
 
 ## Important distinction
 
@@ -53,6 +64,12 @@ The evidence can identify a common execution trajectory while showing:
 
 Therefore correlation must remain distinct from execution consistency, authorization, safety, successful execution, and physical-effect verification.
 
+E5 similarly demonstrates that a valid controller rejection is not the same thing as a correlation failure:
+
+**CORRELATED + REJECTED**
+
+This preserves negative outcome evidence rather than erasing the execution relationship.
+
 ## Claim boundary
 
 This result supports the architecture hypothesis under a controlled test.
@@ -60,3 +77,5 @@ This result supports the architecture hypothesis under a controlled test.
 It does **not** establish native TRACE × EABC production interoperability.
 
 The cross-domain relationship was explicitly constructed as analytical test instrumentation. Production interoperability, physical-effect verification, and bypass resistance remain outside the scope of this result.
+
+The current AgenTrust TRACE specification is a developer-preview specification (v0.2); IV-002 therefore treats its semantics as the current external reference, not as a frozen production standard.
