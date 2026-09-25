@@ -21,8 +21,6 @@ HOOK = """        # T32 EXPERIMENTAL: execution-boundary exclusivity hook.
                 tool_name=tool_name,
                 arguments=arguments,
                 policy_id=getattr(self, "_t30_3_policy_id", "t32-policy"),
-                agent_identity=self._session.session_id,
-                execution_id=execution_id,
             )
 
 """
