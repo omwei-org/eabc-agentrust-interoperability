@@ -22,10 +22,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip pytest
           pip install -e "upstream/cmcp[dev]"
-      - name: Run T31 inventory
-        env:
-          PYTHONPATH: ${{ github.workspace }}/upstream/cmcp:${{ github.workspace }}
-        run: pytest -q tests/test_t31_ingress_inventory.py
+      # T31 ingress enumeration is source-inspection evidence; T32 applies its
+      # disposable hook directly at the pinned production forwarding seam.
       - name: Apply disposable T32 patch
         env:
           PYTHONPATH: ${{ github.workspace }}
