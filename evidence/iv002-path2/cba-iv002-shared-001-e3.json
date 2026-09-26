@@ -1,0 +1,10 @@
+{
+  "schema": "iv002.cba.v0",
+  "case": "E3",
+  "shared_event_id": "iv002-shared-001",
+  "trace_artifact_hash": "sha256:fc511fffec6f61fc35153513c8d9fbbe3e5ebb8e46655094145f8388a4d208b5",
+  "eabc_artifact_hash": "sha256:683781cd9459dad646062f5e9975a233cad3308268ffa931dc558673cf894db9",
+  "expected_trace_call_id": "iv002-unrelated-001",
+  "binding_rule": "trace.call_id == eabc.command_id == cba.shared_event_id",
+  "temporal_window": "2026-09-26T05:55:00Z/2026-09-26T06:05:00Z"
+}
