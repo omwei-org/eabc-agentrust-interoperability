@@ -16,7 +16,7 @@
       "target": "controlled_resource",
       "value": 43
     },
-    "payload_digest": "sha256:fc4f2bb6e5f9e5e0e8d5b6e3d2f2d4d7c2b0f9a0c7e8d5b1f1b4a6c6b6a0b2f5",
+    "payload_digest": "sha256:c328774f61b34b6afd0bc4e4b2618d1ff5239a416a4646bab860311538a147b7",
     "post_gate_transform": true
   },
   "authority": {
