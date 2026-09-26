@@ -1,0 +1,55 @@
+{
+  "experiment": "T28",
+  "event": {
+    "event_id": "eabc-trace-controlled-001",
+    "session_id": "trace-session-t28-001",
+    "call_id": "call-t28-001",
+    "agent_id": "did:web:agent.example:cell-a:planner-1",
+    "action_type": "material.move",
+    "action_scope": "cell-a.material.move",
+    "action_timestamp": "2026-09-26T06:30:00Z",
+    "controller_target": "did:web:factory.example:cell-a:material-station-1",
+    "requested_scope": "cell-a.material.move",
+    "action": {
+      "material_id": "MAT-001",
+      "from": "buffer-a",
+      "to": "station-1"
+    }
+  },
+  "trace_evidence": {
+    "event_id": "eabc-trace-controlled-001",
+    "call_id": "call-t28-001",
+    "session_id": "trace-session-t28-001",
+    "action_ref": "sha256:4cd578e966296639dc60ee50f5e8e40397fc4458cd4d58fec86ea68dd5212db0",
+    "controller_target": "did:web:factory.example:cell-a:material-station-1",
+    "requested_scope": "cell-a.material.move",
+    "receipt": {
+      "evidence_type": "application/vnd.agentrust.action-receipt+json",
+      "decision": "accepted",
+      "linked_call_id": "call-t28-001",
+      "session_id": "trace-session-t28-001",
+      "action_ref": "sha256:4cd578e966296639dc60ee50f5e8e40397fc4458cd4d58fec86ea68dd5212db0"
+    }
+  },
+  "eabc_evidence": {
+    "event_id": "eabc-trace-controlled-001",
+    "call_id": "call-t28-001",
+    "action_ref": "sha256:4cd578e966296639dc60ee50f5e8e40397fc4458cd4d58fec86ea68dd5212db0",
+    "commit_id": "eabc-t28-001",
+    "tool_name": "material.move",
+    "request_payload_hash": "sha256:3bda2d73a1d2ad2d5dbdc09c95f0990e6e0e7de32cb5e71dbe5e8dfebab6a831",
+    "policy_id": "policy-material-move-v1",
+    "authority": "ALLOW",
+    "commit": "OBSERVED",
+    "effect": "APPLIED"
+  },
+  "binding": {
+    "event_id": "eabc-trace-controlled-001",
+    "trace_action_ref": "sha256:4cd578e966296639dc60ee50f5e8e40397fc4458cd4d58fec86ea68dd5212db0",
+    "eabc_commit_id": "eabc-t28-001",
+    "eabc_request_payload_hash": "sha256:3bda2d73a1d2ad2d5dbdc09c95f0990e6e0e7de32cb5e71dbe5e8dfebab6a831",
+    "trace_evidence_hash": "sha256:8f941bce1d623e9e711f026bd171f5be6c3926cabd85db660d7f511759ac5dde",
+    "binding": "MATCH"
+  },
+  "binding_hash": "sha256:8289ce5481c4c42595992c1c6cf0bb44b9cf6c6882f689f3a501c4878a25286e"
+}
