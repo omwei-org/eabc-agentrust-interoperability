@@ -1,0 +1,30 @@
+{
+  "schema": "iv002.eabc-evidence.v0",
+  "case": "E2",
+  "shared_event_id": "iv002-shared-001",
+  "command_id": "iv002-shared-001",
+  "timestamp": "2026-09-26T06:00:00Z",
+  "governed_action": {
+    "action": "set_value",
+    "target": "controlled_resource",
+    "value": 42
+  },
+  "governed_action_digest": "sha256:df4166a3de4ab94628e90b53c20cf9027a6da2472e1eb131336ad83a24ea3e60",
+  "execution": {
+    "payload": {
+      "action": "set_value",
+      "target": "controlled_resource",
+      "value": 43
+    },
+    "payload_digest": "sha256:c328774f61b34b6afd0bc4e4b2618d1ff5239a416a4646bab860311538a147b7",
+    "post_gate_transform": true
+  },
+  "authority": {
+    "decision": "ALLOW",
+    "epoch": 1
+  },
+  "result": {
+    "effect": "APPLIED",
+    "status": "completed"
+  }
+}
