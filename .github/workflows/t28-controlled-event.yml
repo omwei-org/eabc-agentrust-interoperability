@@ -1,0 +1,20 @@
+name: T28 controlled TRACE EABC event
+
+on:
+  push:
+    branches:
+      - "experiment/t28-controlled-trace-eabc-001"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify controlled event
+        run: python -m pytest -q tests/test_t28_controlled_event.py
+      - name: Recompute result
+        run: python tools/run_t28_controlled_event.py
