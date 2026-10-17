@@ -79,3 +79,6 @@ The concrete CONNECT code order and recommended deterministic test-hook location
 
 ## GEN-01 regression coverage review
 The pinned-source review of existing stale-generation relay and credential-guard tests is recorded in [openshell-gen01-regression-coverage.md](evidence/openshell-gen01-regression-coverage.md). Existing tests lower the plausibility of a simple stale-generation race, but do not themselves establish canary-observed upstream behavior for the complete CONNECT path. No new runtime test was executed; GEN-01 through GEN-04 remain **NOT TESTED**.
+
+## OS-06 RFC 0005 conformance review
+See [openshell-rfc0005-conformance-review.md](evidence/openshell-rfc0005-conformance-review.md) for the pinned-source comparison against RFC 0005 Phase 3. This is a conformance question, not a confirmed vulnerability. Existing stale-generation/overlap tests provide useful unit-level coverage; full runtime and upstream-canary scenarios remain **NOT TESTED**.
