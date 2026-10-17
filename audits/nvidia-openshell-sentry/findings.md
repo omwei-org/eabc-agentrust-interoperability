@@ -2,60 +2,74 @@
 
 Date opened: 2026-10-17  
 OpenShell source baseline: `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`  
-Runtime validation: **not performed in this environment**.
+Runtime validation: **NOT TESTED**. No runtime reproduction attempts were performed in this audit.
 
 ## Summary
 
-| ID | Area | Current assessment | Runtime status |
-|---|---|---|---|
-| OS-01 | Network paths / direct-egress bypass | Driver-specific isolation mechanisms and named source tests found | NOT TESTED; no bypass reproduced |
-| OS-02 | Credential binding / rotation / revocation | E2E source test contract covers endpoint binding and credential rotation/revocation | NOT TESTED |
-| OS-06 | Authorization generation and credential guard | Shared authorization snapshot and generation guards found; race remains a falsification hypothesis | NOT TESTED; no vulnerability reproduced |
-| OS-07 | Authoritative evaluation errors vs missing L7 metadata | Source regression test distinguishes evaluation error from missing metadata fallback | NOT TESTED |
-| OS-08 | VM host bind mounts / virtiofs | Explicit opt-in, source/target validation, RO/RW mode and E2E test contract found; host-side isolation needs further verification | NOT TESTED; no escape reproduced |
-| SG-01 | Sentry standalone enforcement and EABC mapping | Evidence not yet collected in this audit | NOT TESTED |
-| COM-01 | OpenShell + Sentry composition | Evidence not yet collected; must not infer combined guarantees from component descriptions | NOT TESTED |
+| ID | Area | Evidence class | EABC criterion | Current assessment | Test status |
+|---|---|---|---|---|---|
+| OS-01 | Network paths / direct-egress bypass | DOC-CLAIM + SOURCE + TEST-CONTRACT | NON_BYPASSABILITY(B,E); INTEGRITY_CTX(C,B,E) | Driver-specific controls and named tests identified; runtime behavior unknown | NOT TESTED — runtime bypass status unknown |
+| OS-02 | Credential binding / rotation / revocation | TEST-CONTRACT | INTEGRITY_CTX(C,B,E); EXCLUSIVITY; NON_BYPASSABILITY(B,E) | E2E source test contract covers endpoint binding and credential rotation/revocation | NOT TESTED — source test contract only |
+| OS-06 | Authorization generation and credential guard | SOURCE + TEST-CONTRACT + DOC-CLAIM | INTEGRITY_STATE(B,E); INTEGRITY_CTX(C,B,E); NON_BYPASSABILITY(B,E) | Generation guards found; race and RFC/implementation discrepancy remain unresolved | NOT TESTED — race hypothesis not validated |
+| OS-07 | Evaluation errors vs missing L7 metadata | TEST-CONTRACT + SOURCE | INTEGRITY_CTX(C,B,E); NON_BYPASSABILITY(B,E) | Regression contract distinguishes evaluation errors from missing-metadata fallback; fallback safety remains open | NOT TESTED — source regression contract only |
+| OS-08 | VM host bind mounts / virtiofs | DOC-CLAIM + SOURCE + TEST-CONTRACT | NON_BYPASSABILITY(B,E); INTEGRITY_DEF(B); INTEGRITY_CTX(C,B,E) | Several controls identified; complete host-path isolation unverified | NOT TESTED — host-path escape status unknown |
+| SG-01 | Sentry standalone enforcement | NOT ASSESSED | To be determined from concrete protected effect and boundary | Evidence not yet collected | NOT TESTED — evidence collection pending |
+| COM-01 | OpenShell + Sentry composition | NOT ASSESSED | To be determined for the composed enforcement boundary | Evidence not yet collected; do not infer composition guarantees from component claims | NOT TESTED — integration evidence pending |
 
 ## OS-01 — Network paths and direct-egress bypass
 
-**Current assessment:** Driver-specific source mechanisms and test contracts are confirmed. A runtime bypass is not confirmed.
+**Evidence classes:** `DOC-CLAIM` for driver documentation; `SOURCE` for inspected implementation; `TEST-CONTRACT` for named tests. **Runtime status: NOT TESTED — runtime bypass status unknown.**
+
+**EABC relevance:** Primarily `NON_BYPASSABILITY(B,E)` for every path to the protected effect, plus `INTEGRITY_CTX(C,B,E)` where routing/endpoint context determines authorization. This is a candidate mapping, not an EABC conformance result.
 
 - Docker driver documentation describes `network_mode=none` and TCP/DNS mediation through a seccomp user-notification broker.
 - Podman documentation describes `network=none`, protected Unix-socket/authenticated gRPC mediation, and no generic UDP support.
 - VM driver documentation describes no virtual NIC and a protected vsock channel.
 - Source tests include `workload_sockets_are_bound_to_loopback_and_cannot_be_rebound`, `broker_refuses_socket_families_it_cannot_confine`, `external_connect_waits_for_explicit_relay_decision`, `denied_external_connect_keeps_socket_unconnected`, and `workload_cannot_bind_a_non_loopback_source_address`.
 
-**Limits:** these are source/doc and test-contract findings, not evidence that tests ran. Test each driver independently. Test direct TCP, UDP/DNS, alternate socket APIs, supervisor failure/restart, private/link-local/metadata targets, and DNS rebinding.
+**Limits:** These are documentation/source/test-contract observations, not evidence that tests ran. Test each driver independently. Test direct TCP, UDP, IPv6, ICMP, raw sockets, UNIX socket paths outside the broker, supervisor failure/restart, private/link-local/metadata targets, and DNS rebinding including mixed A/AAAA answers.
+
+**Pinned evidence:** [Docker driver README, lines 35–49](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-docker/README.md#L35-L49); [Podman networking, lines 1–25](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-podman/NETWORKING.md#L1-L25); [VM driver README, lines 1–65](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-vm/README.md#L1-L65); [network broker tests, lines 2880–3010](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-sandbox/src/network_broker.rs#L2880-L3010).
 
 ## OS-02 — Credential binding, rotation, revocation
 
-**Current assessment:** Source E2E test contract is present; runtime status is NOT TESTED.
+**Evidence class:** `TEST-CONTRACT` (source test inspected). **Runtime status: NOT TESTED — source test contract only.**
+
+**EABC relevance:** `INTEGRITY_CTX(C,B,E)` for endpoint/credential binding, `EXCLUSIVITY` for preventing use outside the authorized endpoint, and `NON_BYPASSABILITY(B,E)` only if all paths to the protected effect are mediated. The test contract alone does not establish those EABC properties.
 
 Pinned source test: [`stable_external_placeholders.rs`](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/e2e/rust/tests/stable_external_placeholders.rs).
 
-The file is gated by `e2e-docker`. Tests named `persistent_external_placeholder_rotation_and_revocation` and `ordinary_external_placeholder_keeps_revoked_assertion_after_rotation` exercise a synthetic `tools/call` request over a sandbox HTTPS path, endpoint binding controls, and credential rotation/revocation. This is not a complete MCP session or full agent-runtime test. Do not describe it as runtime-passed without a run record.
+The file is gated by `e2e-docker`. Tests named `persistent_external_placeholder_rotation_and_revocation` and `ordinary_external_placeholder_keeps_revoked_assertion_after_rotation` exercise a synthetic `tools/call` request over a sandbox HTTPS path, endpoint binding controls, and credential rotation/revocation. This is not a complete MCP session or full agent-runtime test. Do not describe it as runtime-passed without a run record. [Pinned test, lines 1020–1105](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/e2e/rust/tests/stable_external_placeholders.rs#L1020-L1105).
 
 ## OS-06 — Authorization generation / credential guard
 
-**Current assessment:** Source contains generation-pinned authorization and stale-generation checks. The suspected credential-guard/reload race is a test hypothesis, not a confirmed vulnerability.
+**Evidence classes:** `SOURCE` and `TEST-CONTRACT`; RFC claims are `DOC-CLAIM`. **Runtime status: NOT TESTED — race hypothesis not validated.**
+
+**EABC relevance:** `INTEGRITY_STATE(B,E)` and `INTEGRITY_CTX(C,B,E)` because policy generation and endpoint context must remain bound to the decision; `NON_BYPASSABILITY(B,E)` if a stale decision can reach the protected effect. These are audit mappings, not conformance conclusions.
 
 Reviewed areas include `crates/openshell-supervisor-network/src/proxy.rs`, `opa.rs`, `proxy/relay.rs`, compatibility tests, and RFC 0005. The main authorization result supplies endpoint metadata and generation; the route generation is pinned before credential-guard evaluation; stale generation is checked before upstream connection/CONNECT completion and during dial. Relay paths also check generation and close on fail-closed generation publication.
 
-The separate credential-guard OPA query does not itself return a generation. That fact alone is not a vulnerability because the surrounding route-generation checks may reject stale decisions. RFC text about mixed-generation metadata may be stale relative to implementation; treat as a documentation discrepancy pending reconciliation, not proof of a bug.
+The separate credential-guard OPA query does not itself return a generation. That fact alone is not a vulnerability because the surrounding route-generation checks may reject stale decisions. There is an unresolved documentation/implementation discrepancy: [RFC 0005 current-shape, lines 221–240](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/rfc/0005-sandbox-proxy-egress-adapter/current-shape.md#L221-L240) describes sibling metadata queries not all asserted against the L4 decision generation, while [the implementation plan, lines 66–82](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/rfc/0005-sandbox-proxy-egress-adapter/implementation-plan.md#L66-L82) describes generation-consistent authorization cutover. Reconcile these statements against the exact implementation before classifying either as stale. This discrepancy is not proof of a vulnerability.
+
+**Pinned implementation evidence:** [proxy generation handling, lines 730–770](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy.rs#L730-L770); [OPA generation guard definitions, lines 180–225](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/opa.rs#L180-L225); [relay generation validation, lines 95–145](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/relay.rs#L95-L145).
 
 **Falsification test:** insert a barrier between primary authorization and credential-guard query; reload policy from a raw-tunnel-allowed rule to a credentialed endpoint requiring L7, and reverse. Also reload between final generation check and CONNECT success and during an active relay. Record whether old-generation traffic reaches upstream. Expected fail-closed result: stale CONNECT rejected/closed before protected upstream bytes flow.
 
 ## OS-07 — Evaluation error vs missing L7 metadata
 
-**Current assessment:** Source regression contract is confirmed; runtime is NOT TESTED.
+**Evidence class:** `TEST-CONTRACT` (source regression tests inspected). **Runtime status: NOT TESTED — source regression contract only.**
+
+**EABC relevance:** `INTEGRITY_CTX(C,B,E)` and `NON_BYPASSABILITY(B,E)`: a fallback must not silently weaken the boundary applicable to the protected effect.
 
 Pinned test file: [`compatibility.rs`](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/tests/compatibility.rs).
 
-Tests cover missing authorized L7 metadata falling back to L4-only defaults and an authoritative evaluation error denying rather than falling back. This is a useful distinction, but it does not prove every production retrieval/decode failure follows the same fail-closed path.
+Tests cover missing authorized L7 metadata falling back to L4-only defaults and an authoritative evaluation error denying rather than falling back. This is a useful distinction, but it does not prove every production retrieval/decode failure follows the same fail-closed path. More importantly, the L4-only fallback itself needs risk assessment for endpoints using credential injection: determine whether the weaker L4 decision can still permit a protected request or expose injected credentials when L7 metadata is missing. [Pinned compatibility tests, lines 270–345](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/tests/compatibility.rs#L270-L345).
 
 ## OS-08 — VM bind mounts / virtiofs
 
-**Current assessment:** Several source safeguards are confirmed; complete host-path isolation is NOT CONFIRMED. No escape has been reproduced and runtime is NOT TESTED.
+**Evidence classes:** `DOC-CLAIM`, `SOURCE`, and `TEST-CONTRACT`. **Runtime status: NOT TESTED — host-path escape status unknown.**
+
+**EABC relevance:** `NON_BYPASSABILITY(B,E)` and `INTEGRITY_DEF(B)` for the filesystem boundary; `INTEGRITY_CTX(C,B,E)` where the configured share defines the authorized context.
 
 Pinned source areas: `crates/openshell-driver-vm/src/driver.rs`, `scripts/openshell-vm-sandbox-init.sh`, `src/ffi.rs`, `README.md`, and `e2e/rust/tests/vm_bind_mount.rs`.
 
@@ -66,15 +80,15 @@ Pinned source areas: `crates/openshell-driver-vm/src/driver.rs`, `scripts/opensh
 - E2E test contract covers two temporary host shares, read/write behavior for RW, and refusal to overwrite through RO.
 - OpenShell VM README warns host bind mounts expose host files and may bypass workspace isolation/filesystem policy.
 
-Upstream libkrun documentation warns that virtiofs alone does not isolate a share from other directories/filesystems visible to the host VMM process and recommends host OS mount isolation. This is a material question, not proof that OpenShell is vulnerable: inspect the actual launch environment and verify whether the VMM process is restricted to the intended host paths. Test with harmless canary files outside the allowed share, separately for RO/RW and each supported host platform.
+Upstream libkrun documentation warns that virtiofs alone does not isolate a share from other directories/filesystems visible to the host VMM process and recommends host OS mount isolation. This is a material question, not proof that OpenShell is vulnerable: inspect the actual launch environment and verify whether the VMM process is restricted to the intended host paths. Test with harmless canary files outside the allowed share, separately for RO/RW and each supported host platform. Also test symlinks and hardlinks inside the shared tree that target outside paths, `..` traversal, and already-open file descriptors; determine whether the host VMM process or guest can follow those paths. [VM driver mount configuration, lines 120–160](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-vm/src/driver.rs#L120-L160); [guest virtiofs target checks, lines 520–565](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-vm/scripts/openshell-vm-sandbox-init.sh#L520-L565); [VM bind-mount E2E test, lines 1–100](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/e2e/rust/tests/vm_bind_mount.rs#L1-L100).
 
 ## SG-01 — Sentry standalone
 
-**Status: NOT TESTED / evidence collection pending.** Do not yet infer EABC non-bypassability, boundary integrity, or substrate independence from product positioning. Capture version/commit, deployment requirements, trust boundary, protected effect, attacker model, fail-closed behavior, and evidence for every claim.
+**Evidence class:** `NOT ASSESSED`. **Status: NOT TESTED — evidence collection pending.** Do not infer EABC non-bypassability, boundary integrity, or substrate independence from product positioning. Before testing, pin the exact Sentry software/firmware version, device model, deployment mode, and configuration. EABC criteria remain undetermined until the protected effect and boundary are concretely specified. Capture version/commit, deployment requirements, trust boundary, protected effect, attacker model, fail-closed behavior, and evidence for every claim.
 
 ## COM-01 — OpenShell + Sentry composition
 
-**Status: NOT TESTED / evidence collection pending.** Establish the exact architecture and path by which protected effects are committed. Determine whether Sentry mediates every path to the effect, how OpenShell policy and Sentry authorization are bound, and what happens on component failure, policy update, bypass path, or downgrade. Component claims must not be added together as if composition were proven.
+**Evidence class:** `NOT ASSESSED`. **Status: NOT TESTED — integration evidence pending.** Before testing, pin the exact Sentry software/firmware version, device model, deployment mode, and configuration as well as the OpenShell commit. Establish the exact architecture and path by which protected effects are committed. Determine whether Sentry mediates every path to the effect, how OpenShell policy and Sentry authorization are bound, and what happens on component failure, policy update, bypass path, or downgrade. Component claims must not be added together as if composition were proven.
 
 ## References
 
@@ -82,4 +96,4 @@ Upstream libkrun documentation warns that virtiofs alone does not isolate a shar
 - Docker driver: https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-docker/README.md
 - Podman networking: https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-podman/NETWORKING.md
 - VM driver README: https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-vm/README.md
-- libkrun security notes: https://github.com/libkrun/libkrun
+- libkrun security notes: https://github.com/libkrun/libkrun (upstream documentation; pin the exact reviewed revision before treating it as a reproducible evidence artifact)
