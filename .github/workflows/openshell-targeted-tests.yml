@@ -1,0 +1,139 @@
+name: OpenShell targeted regression tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/openshell-sentry-2026-10
+    paths:
+      - .github/workflows/openshell-targeted-tests.yml
+      - audits/nvidia-openshell-sentry/test-matrix.md
+      - audits/nvidia-openshell-sentry/evidence/openshell-revocation-controller-loss-review.md
+
+permissions:
+  contents: read
+
+jobs:
+  targeted-regressions:
+    name: Run named tests at pinned OpenShell SHA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OPEN_SHELL_SHA: b58e24c9dabd6d4bcf2b7186592d3ad50646541b
+      CARGO_TERM_COLOR: always
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Checkout audit repository
+        uses: actions/checkout@v4
+
+      - name: Checkout exact OpenShell commit
+        uses: actions/checkout@v4
+        with:
+          repository: NVIDIA/OpenShell
+          ref: b58e24c9dabd6d4bcf2b7186592d3ad50646541b
+          path: OpenShell
+          persist-credentials: false
+
+      - name: Verify checkout SHA and record environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd OpenShell
+          actual="$(git rev-parse HEAD)"
+          echo "expected_sha=$OPEN_SHELL_SHA"
+          echo "actual_sha=$actual"
+          test "$actual" = "$OPEN_SHELL_SHA"
+          rustc --version --verbose || true
+          git status --short
+          mkdir -p ../artifacts
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake pkg-config libz3-dev
+
+      - name: Install cargo-nextest
+        run: cargo install cargo-nextest --locked
+
+      - name: Run each named regression test and record exit codes
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd OpenShell
+          mkdir -p ../artifacts
+          overall_rc=0
+
+          run_one() {
+            name="$1"
+            filter="$2"
+            junit="../artifacts/$name.junit.xml"
+            log="../artifacts/$name.log"
+            command="cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test($filter)' --junit $junit"
+            {
+              echo "test_name=$filter"
+              echo "target_sha=$(git rev-parse HEAD)"
+              echo "command=$command"
+              echo "started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            } > "../artifacts/$name.meta.txt"
+
+            set +e
+            cargo nextest run --locked --profile ci -p openshell-supervisor-network -E "test($filter)" --junit "$junit" > "$log" 2>&1
+            rc=$?
+            set -e
+            cat "$log"
+            echo "exit_code=$rc" | tee -a "../artifacts/$name.meta.txt"
+
+            if [ "$rc" -eq 0 ]; then
+              if [ ! -s "$junit" ]; then
+                echo "ERROR: nextest returned 0 but did not create JUnit output" | tee -a "../artifacts/$name.meta.txt"
+                rc=2
+              else
+                python3 - "$junit" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          cases = list(root.iter("testcase"))
+          failures = list(root.iter("failure")) + list(root.iter("error"))
+          print(f"junit_testcases={len(cases)}")
+          print(f"junit_failures_or_errors={len(failures)}")
+          if not cases or failures:
+              raise SystemExit(2)
+          PY
+                junit_rc=$?
+                if [ "$junit_rc" -ne 0 ]; then
+                  echo "ERROR: JUnit had no testcases or reported failures/errors" | tee -a "../artifacts/$name.meta.txt"
+                  rc=2
+                fi
+              fi
+            fi
+            echo "final_exit_code=$rc" | tee -a "../artifacts/$name.meta.txt"
+            if [ "$rc" -ne 0 ]; then overall_rc=1; fi
+          }
+
+          set -e
+          run_one stale_generation_fails_before_relay_context_is_created stale_generation_fails_before_relay_context_is_created
+          run_one test_forward_relay_guard_blocks_stale_generation_before_upstream_write test_forward_relay_guard_blocks_stale_generation_before_upstream_write
+          run_one credential_guard_does_not_shadow_inspected_endpoint_config credential_guard_does_not_shadow_inspected_endpoint_config
+
+          {
+            echo "target_repository=NVIDIA/OpenShell"
+            echo "target_sha=$(git rev-parse HEAD)"
+            echo "toolchain=$(rustc --version)"
+            echo "finished_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > ../artifacts/run-summary.txt
+          for f in ../artifacts/*.meta.txt; do cat "$f" >> ../artifacts/run-summary.txt; done
+          exit "$overall_rc"
+
+      - name: Upload logs, metadata and JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openshell-targeted-regressions-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
