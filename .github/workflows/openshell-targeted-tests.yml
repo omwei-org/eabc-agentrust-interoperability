@@ -7,8 +7,10 @@ on:
       - audit/openshell-sentry-2026-10
     paths:
       - .github/workflows/openshell-targeted-tests.yml
-      - audits/nvidia-openshell-sentry/test-matrix.md
-      - audits/nvidia-openshell-sentry/evidence/openshell-revocation-controller-loss-review.md
+
+concurrency:
+  group: openshell-targeted-tests-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -45,6 +47,9 @@ jobs:
           test "$actual" = "$OPEN_SHELL_SHA"
           mkdir -p ../artifacts
           {
+            echo "audit_repository=omwei-org/eabc-agentrust-interoperability"
+            echo "audit_repository_sha=$GITHUB_SHA"
+            echo "workflow_ref=$GITHUB_WORKFLOW_REF"
             echo "target_repository=NVIDIA/OpenShell"
             echo "target_sha=$actual"
             echo "checkout_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -82,6 +87,9 @@ jobs:
 
             {
               echo "test_name=$filter"
+              echo "audit_repository=omwei-org/eabc-agentrust-interoperability"
+              echo "audit_repository_sha=$GITHUB_SHA"
+              echo "workflow_ref=$GITHUB_WORKFLOW_REF"
               echo "target_sha=$(git rev-parse HEAD)"
               echo "cargo_nextest_version=$(cargo nextest --version)"
               echo "started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -111,14 +119,14 @@ jobs:
             # Use a tool-specific overlay so upstream OpenShell files remain untouched.
             printf '[profile.ci.junit]\npath = "%s"\nstore-success-output = true\n' "$junit" > "$tool_config"
 
-            command="cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E test($filter) --tool-config-file openshell-audit:$tool_config"
+            command="cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E 'test(^${filter}$)' --tool-config-file openshell-audit:$tool_config"
             {
               echo "listed_test_match=$(grep -F -- "$filter" "$listed" | head -n 1)"
               echo "command=$command"
             } >> "$meta"
 
             set +e
-            cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E "test($filter)" --tool-config-file "openshell-audit:$tool_config" > "$log" 2>&1
+            cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E "test(^${filter}$)" --tool-config-file "openshell-audit:$tool_config" > "$log" 2>&1
             rc=$?
             set -e
             cat "$log"
@@ -153,9 +161,9 @@ jobs:
           ]
           print(f"junit_testcases_total={len(cases)}")
           print(f"junit_matching_testcases={len(selected)}")
-          if not selected:
+          if len(cases) != 1 or len(selected) != 1:
               print("result=HARNESS ERROR")
-              print("reason=JUnit does not contain the selected named test")
+              print("reason=Expected exactly one JUnit testcase for the exact named-test filter")
               raise SystemExit(2)
 
           failures = [node for case in selected for node in list(case.findall("failure")) + list(case.findall("error"))]
@@ -184,6 +192,9 @@ jobs:
           run_one credential_guard_does_not_shadow_inspected_endpoint_config credential_guard_does_not_shadow_inspected_endpoint_config
 
           {
+            echo "audit_repository=omwei-org/eabc-agentrust-interoperability"
+            echo "audit_repository_sha=$GITHUB_SHA"
+            echo "workflow_ref=$GITHUB_WORKFLOW_REF"
             echo "target_repository=NVIDIA/OpenShell"
             echo "target_sha=$(git rev-parse HEAD)"
             echo "toolchain=$(rustc --version)"
