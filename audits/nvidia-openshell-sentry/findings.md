@@ -19,6 +19,18 @@ Runtime validation: **NOT TESTED**. No runtime reproduction attempts were perfor
 | SG-01 | Sentry standalone enforcement | NOT ASSESSED | To be determined from concrete protected effect and boundary | Evidence not yet collected | NOT TESTED — evidence collection pending |
 | COM-01 | OpenShell + Sentry composition | NOT ASSESSED | To be determined for the composed enforcement boundary | Evidence not yet collected; do not infer composition guarantees from component claims | NOT TESTED — integration evidence pending |
 
+## BASELINE-04 — Delegated backend assurance
+
+**Evidence class:** `SOURCE`. **Status: NOT TESTED — delegated-backend enforcement proof not established by common runtime.**
+
+At the checked upstream commit, common runtime confirmation enforces equality of generation, session, resource claims and provisioning-evidence digest, but calls `validate_native_linux_audit` only when `backend_name == BACKEND_NAME` ([runtime confirmation, lines 357–375](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-sandbox-backend/src/runtime.rs#L357-L375)). The delegated-backend test sets `backend_audit = null`, accepts confirmation, and starts the agent ([delegated test, lines 81–107](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-sandbox-backend/src/runtime/tests/delegated.rs#L81-L107)). Other tests reject mismatched generation, session, identity, claims and evidence digest ([lines 110–143](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-sandbox-backend/src/runtime/tests/delegated.rs#L110-L143)).
+
+This does not automatically indicate a vulnerability: the protocol may intentionally delegate native enforcement assurance to the external backend. But the common runtime binding checks do not, by themselves, prove that an arbitrary delegated backend actually enforces the claimed boundary. The assurance boundary therefore depends on how delegated backends are admitted, authenticated, assessed and constrained.
+
+**EABC relevance:** `NON_BYPASSABILITY(B,E)` and `INTEGRITY_DEF(B)` require evidence that the delegated implementation's boundary is real and complete; `INTEGRITY_CTX(C,B,E)` requires that its enforcement state is bound to the confirmed identity, generation and protected effect. A matching evidence digest binds a payload to a generation; it does not establish the truth of a delegated backend's claims.
+
+**Verification plan:** enumerate all permitted delegated backend implementations and admission controls; test null, empty, malformed and semantically incomplete evidence; attempt to claim a generation/session/identity while the effective backend uses a different boundary; and verify protected effect remains blocked unless the delegated substrate provides independently verifiable enforcement evidence. Record backend identity, version, attestation or equivalent trust basis, policy hash, and upstream canary observations. Runtime status remains `NOT TESTED`.
+
 ## BASELINE-03 — VM evidence-to-runtime binding
 
 **Evidence class:** `SOURCE`. **Status: NOT TESTED — evidence-to-runtime binding unknown.**
