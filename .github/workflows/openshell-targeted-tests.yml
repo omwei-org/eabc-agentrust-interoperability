@@ -98,7 +98,7 @@ jobs:
                 rc=2
               else
                 set +e
-                python3 -c 'import sys, xml.etree.ElementTree as E; r=E.parse(sys.argv[1]).getroot(); c=list(r.iter("testcase")); f=list(r.iter("failure))+list(r.iter("error")); print(f"junit_testcases={len(c)}"); print(f"junit_failures_or_errors={len(f)}"); sys.exit(0 if c and not f else 2)' "$junit"
+                python3 -c 'import sys, xml.etree.ElementTree as E; r=E.parse(sys.argv[1]).getroot(); c=list(r.iter("testcase")); f=list(r.iter("failure"))+list(r.iter("error")); print(f"junit_testcases={len(c)}"); print(f"junit_failures_or_errors={len(f)}"); sys.exit(0 if c and not f else 2)' "$junit"
                 junit_rc=$?
                 set -e
                 if [ "$junit_rc" -ne 0 ]; then
