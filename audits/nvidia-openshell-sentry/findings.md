@@ -170,3 +170,12 @@ Upstream libkrun documentation warns that virtiofs alone does not isolate a shar
 - Podman networking: https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-podman/NETWORKING.md
 - VM driver README: https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-driver-vm/README.md
 - libkrun security notes: https://github.com/libkrun/libkrun (upstream documentation; pin the exact reviewed revision before treating it as a reproducible evidence artifact)
+
+
+## OS-06 follow-up — authorization generation and credential guard
+
+**Evidence classes:** `SOURCE` + `DOC-CLAIM` + `TEST-CONTRACT`. **Status: NOT TESTED.** Detailed source/RFC comparison and runtime plan: [OS-06 generation review](evidence/openshell-os06-generation-review.md).
+
+The pinned-baseline RFC says L4 authorization, L7 route, TLS mode, `allowed_ips`, and exact-declared-host metadata were materialized in separate calls, not all checked against the L4 decision generation. Its Phase 3 plan proposes one generation-consistent authorization result and explicit reload-race tests. At follow-up commit `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, source provides meaningful counter-evidence: CONNECT checks route generation against the captured generation, relay setup rejects mismatched route generations, and a generation guard can detect/wait for stale policy. Credential guard aggregation is conservative across matching credentialed endpoints, with a regression test for overlapping L4 and inspected endpoints.
+
+This narrows but does not fully close the discrepancy. The visible route-generation check does not alone prove every sibling metadata query is atomically bound to the same generation, and the credential-guard query's call boundary does not visibly accept an expected-generation argument. This remains a falsifiable race-test lead, **not a confirmed vulnerability**. Test GEN-01 through GEN-04 with deterministic barriers and an independent upstream canary; never infer runtime success from source alone.
