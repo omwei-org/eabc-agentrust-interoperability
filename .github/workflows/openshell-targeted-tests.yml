@@ -34,7 +34,7 @@ jobs:
           path: OpenShell
           persist-credentials: false
 
-      - name: Verify checkout SHA and record environment
+      - name: Verify exact source SHA
         shell: bash
         run: |
           set -euo pipefail
@@ -43,9 +43,12 @@ jobs:
           echo "expected_sha=$OPEN_SHELL_SHA"
           echo "actual_sha=$actual"
           test "$actual" = "$OPEN_SHELL_SHA"
-          rustc --version --verbose || true
-          git status --short
           mkdir -p ../artifacts
+          {
+            echo "target_repository=NVIDIA/OpenShell"
+            echo "target_sha=$actual"
+            echo "checkout_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > ../artifacts/source-checkout.txt
 
       - name: Install Rust 1.95.0
         uses: dtolnay/rust-toolchain@master
@@ -73,58 +76,39 @@ jobs:
             filter="$2"
             junit="../artifacts/$name.junit.xml"
             log="../artifacts/$name.log"
+            meta="../artifacts/$name.meta.txt"
             command="cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test($filter)' --junit $junit"
             {
               echo "test_name=$filter"
               echo "target_sha=$(git rev-parse HEAD)"
               echo "command=$command"
               echo "started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            } > "../artifacts/$name.meta.txt"
+            } > "$meta"
 
             set +e
             cargo nextest run --locked --profile ci -p openshell-supervisor-network -E "test($filter)" --junit "$junit" > "$log" 2>&1
             rc=$?
             set -e
             cat "$log"
-            echo "exit_code=$rc" | tee -a "../artifacts/$name.meta.txt"
+            echo "cargo_nextest_exit_code=$rc" | tee -a "$meta"
 
             if [ "$rc" -eq 0 ]; then
               if [ ! -s "$junit" ]; then
-                echo "ERROR: nextest returned 0 but did not create JUnit output" | tee -a "../artifacts/$name.meta.txt"
+                echo "ERROR: nextest returned 0 but did not create JUnit output" | tee -a "$meta"
                 rc=2
               else
-                python3 - "$junit" <<'PY'
-          import sys
-          import xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          cases = list(root.iter("testcase"))
-          failures = list(root.iter("failure")) + list(root.iter("error"))
-          print(f"junit_testcases={len(cases)}")
-          print(f"junit_failures_or_errors={len(failures)}")
-          if not cases or failures:
-              raise SystemExit(2)
-          PY
                 set +e
-                python3 - "$junit" <<'PY'
-          import sys
-          import xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          cases = list(root.iter("testcase"))
-          failures = list(root.iter("failure")) + list(root.iter("error"))
-          print(f"junit_testcases={len(cases)}")
-          print(f"junit_failures_or_errors={len(failures)}")
-          if not cases or failures:
-              raise SystemExit(2)
-          PY
+                python3 -c 'import sys, xml.etree.ElementTree as E; r=E.parse(sys.argv[1]).getroot(); c=list(r.iter("testcase")); f=list(r.iter("failure))+list(r.iter("error")); print(f"junit_testcases={len(c)}"); print(f"junit_failures_or_errors={len(f)}"); sys.exit(0 if c and not f else 2)' "$junit"
                 junit_rc=$?
                 set -e
                 if [ "$junit_rc" -ne 0 ]; then
-                  echo "ERROR: JUnit had no testcases or reported failures/errors" | tee -a "../artifacts/$name.meta.txt"
+                  echo "ERROR: JUnit has no testcases or reports failures/errors" | tee -a "$meta"
                   rc=2
                 fi
               fi
             fi
-            echo "final_exit_code=$rc" | tee -a "../artifacts/$name.meta.txt"
+
+            echo "final_exit_code=$rc" | tee -a "$meta"
             if [ "$rc" -ne 0 ]; then overall_rc=1; fi
           }
 
