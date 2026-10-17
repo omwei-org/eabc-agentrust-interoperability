@@ -55,3 +55,24 @@ For each run, capture commit, driver/platform, effective policy hash, old/new ge
 **Expected safe result:** no mixed-generation decision may authorize a protected upstream request; stale CONNECT is rejected/closed before protected bytes or credentials arrive; active stale relays close; explicit `allow_uninspected_credentials: true` affects only the endpoint and scope represented by the effective policy.
 
 **Status:** all four rows remain **NOT TESTED**. No runtime attempt was performed as part of this follow-up.
+
+
+## Addendum — deeper engine-lock and authorization-snapshot inspection
+
+Follow-up source inspection at the same pinned OpenShell commit materially narrows the remaining hypothesis:
+
+- `OpaEngine::authorize_egress()` holds the engine mutex while it captures `current_generation()` and evaluates `data.openshell.sandbox.egress_authorization`. The returned `EgressAuthorization` includes action, endpoint configs, matched endpoints, exact-declared-host signal, and the generation captured under that lock.
+- TLS mode and L7 route are hydrated from the already materialized `EgressDecision` endpoint snapshot; they are not separate policy-engine reads in this CONNECT path.
+- The credential-guard query is separate, but it also obtains the same engine mutex for its OPA evaluation. Reload paths take that mutex before replacing the engine and advancing generation. Therefore the query itself is serialized against reload; its result is not an unsynchronized read of a mutating engine.
+- CONNECT later races upstream dialing against `connect_generation_guard.wait_until_stale()` and checks `ensure_current()` after dialing, before writing CONNECT success. Relay paths also carry generation guards.
+
+Source references:
+- [Single-result authorization under engine mutex](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/opa.rs#L600-L675)
+- [Reload lock and generation publication](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/opa.rs#L735-L830)
+- [CONNECT generation guard, credential guard, route validation and dial guard](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/proxy.rs#L2700-L2965)
+
+**Revised interpretation:** the broad claim that CONNECT's TLS, L7 route, destination metadata, and top-level authorization are independently queried and can therefore mix generations is not supported by this inspected path. Most of those fields come from one authorization snapshot. The remaining runtime question is narrower: whether a reload at the precise boundaries around the separate credential-guard query, upstream dial completion, CONNECT success, or relay startup can produce an externally observable policy violation despite the generation guard. The existing source substantially reduces that likelihood, but source inspection is not a runtime falsification test.
+
+GEN-01 should now focus on proving the serialisation/guard behavior rather than assuming mixed-generation metadata. GEN-02 should test the final-check-to-CONNECT-success boundary and independently observe whether a stale relay can carry any protected bytes. GEN-03 should reuse existing relay-reload regression tests and add upstream-side observation only where missing. GEN-04 should not repeat the disproven premise that TLS and L7 are separate OPA queries in this CONNECT path; target only fields actually queried independently and paths not covered by the snapshot.
+
+**Status remains:** GEN-01 through GEN-04 **NOT TESTED**.
