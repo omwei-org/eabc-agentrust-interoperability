@@ -94,7 +94,7 @@ cargo nextest run --locked --profile ci --workspace --features openshell-server/
 cargo nextest run --locked --config-file .config/nextest.toml --profile ci --manifest-path examples/supervisor-middleware-content-guard/Cargo.toml
 ```
 
-The source at `b58e24c` contains `test_forward_relay_guard_blocks_stale_generation_before_upstream_write` in `crates/openshell-supervisor-network/src/proxy.rs` and `credential_guard_does_not_shadow_inspected_endpoint_config` in `crates/openshell-supervisor-network/src/opa.rs`. The run's job conclusion is successful, but the downloaded successful-job logs did not expose individual passing test names under the configured nextest output. Thus this is evidence of broad upstream test execution and green job status, **not** independent confirmation that these two named tests ran and passed, and not a runtime controller-loss/revocation test. The audit's own runtime statuses remain `NOT TESTED`.
+`TEST-CONTRACT` — source at `b58e24c` defines `test_forward_relay_guard_blocks_stale_generation_before_upstream_write` in `crates/openshell-supervisor-network/src/proxy.rs` and `credential_guard_does_not_shadow_inspected_endpoint_config` in `crates/openshell-supervisor-network/src/opa.rs`. The run's job conclusion is successful, but the downloaded successful-job logs did not expose individual passing test names under the configured nextest output. Thus this is evidence of broad upstream test execution and green job status, **not** independent confirmation that these two named tests ran and passed, and not a runtime controller-loss/revocation test. The audit's own runtime statuses remain `NOT TESTED`.
 
 ## Targeted test execution and artifact check
 
