@@ -27,7 +27,7 @@
 - [CONNECT credential guard decision, `proxy.rs` lines 2899–2944](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/proxy.rs#L2899-L2944): provider-credentialed endpoints are rejected when uninspected credentials are not explicitly allowed.
 - [Credential-guard aggregation, `proxy.rs` lines 4008–4054](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/proxy.rs#L4008-L4054).
 - [OPA regression test, `opa.rs` lines 9612–9690](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/opa.rs#L9612-L9690): tests that an L4-only credentialed endpoint does not shadow the inspected endpoint's TLS/SSRF configuration.
-- [Current provider profile documentation](https://docs.nvidia.com/openshell/dev/how-it-works/providers/profiles): documents host/port/path binding and separates credential binding from network-policy authorization.
+- [Current provider profile documentation](https://docs.nvidia.com/openshell/latest/reference/policy-schema): documents host/port/path binding and separates credential binding from network-policy authorization.
 
 **Interpretation:** this is counter-evidence against treating L4 fallback alone as a confirmed vulnerability. It does not replace end-to-end testing for missing/malformed metadata, overlapping endpoints, policy reloads or the explicit opt-in path. Runtime status remains NOT TESTED.
 
