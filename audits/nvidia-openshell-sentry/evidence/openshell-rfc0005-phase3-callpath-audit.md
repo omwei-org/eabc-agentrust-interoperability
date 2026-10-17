@@ -59,7 +59,6 @@ The inspected CONNECT path uses helper steps for TLS, L7 route and destination, 
 - For each Phase 3 field, record its source, the generation attached to it, and the point at which that generation is checked.
 - The current `query_endpoint_credential_guards()` signature returns `Result<Vec<regorus::Value>>`, not a `(result, generation)` pair. In the inspected CONNECT path, alignment is therefore enforced indirectly by the captured `connect_generation_guard` and later `ensure_current()` checks, not by a generation value returned with the guard result. Verify this assumption at both reload windows: reload before/during the guard query and reload after the query but before the final pre-200 check.
 - Check whether forward HTTP and other egress paths have equivalent behavior; do not extrapolate CONNECT results to every adapter.
-- Determine whether the RFC labels Phase 3 as planned, in progress, or completed for this exact commit.
 
 ### C. Run tests at the exact source commit
 
@@ -72,7 +71,7 @@ In a checkout at `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, first run the focus
 
 Record the exact commands, toolchain/platform, exit status and relevant output. Do not mark a test PASS merely because a test exists in source.
 
-### C. Add one narrow effect-side race test
+### D. Add one narrow effect-side race test
 
 Use a harmless canary upstream and synthetic credentials only. Coordinate a policy reload at deterministic barriers before/after the separate credential-guard query and in the upstream-dial window. Capture the authorization generation, guard result/configuration, and whether the canary received a request or protected marker. TLS/L7/destination fields should be checked as projections of the original authorization snapshot, not assumed to be independent OPA reads.
 
