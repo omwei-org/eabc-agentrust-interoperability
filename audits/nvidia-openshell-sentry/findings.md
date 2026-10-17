@@ -19,6 +19,18 @@ Runtime validation: **NOT TESTED**. No runtime reproduction attempts were perfor
 | SG-01 | Sentry standalone enforcement | NOT ASSESSED | To be determined from concrete protected effect and boundary | Evidence not yet collected | NOT TESTED — evidence collection pending |
 | COM-01 | OpenShell + Sentry composition | NOT ASSESSED | To be determined for the composed enforcement boundary | Evidence not yet collected; do not infer composition guarantees from component claims | NOT TESTED — integration evidence pending |
 
+## OS-09 — Missing L7 metadata and credential-injection boundary
+
+**Evidence class:** `SOURCE` + `TEST-CONTRACT`. **Status: NOT TESTED — behavior for credentialed endpoints with missing L7 metadata requires an end-to-end check.**
+
+At the pinned baseline, compatibility tests explicitly preserve an L4-only fallback when authorized L7 metadata is missing, including an absent route snapshot and default TLS/allowlist/exact-host values ([compatibility tests, lines 282–307](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/tests/compatibility.rs#L282-L307)). A separate test asserts that an authoritative policy evaluation error denies rather than using that fallback ([lines 309 onward](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/tests/compatibility.rs#L309-L325)). The proxy also queries a separate credential-provenance guard before materializing the L7 route ([proxy, lines 2757–2775](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy.rs#L2757-L2775); [credential guard query, lines 1029–1059](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/opa.rs#L1029-L1059)).
+
+The fallback is not by itself proof of a defect: L4-only endpoints may be intentionally supported, and the separate credential guard may preserve relevant restrictions. The source-level compatibility test does not, by itself, demonstrate that a credentialed endpoint can never receive injected credentials when L7 metadata is missing or malformed. That must be established across the full decision → credential guard → route materialization → upstream request path.
+
+**EABC relevance:** `NON_BYPASSABILITY(B,E)` requires that the protected effect cannot escape the intended authorization boundary through a fallback path; `INTEGRITY_CTX(C,B,E)` requires the endpoint/credential context used for injection to match the authorization decision. Where credentials are injected, the protected effect is the upstream request carrying those credentials.
+
+**Verification plan:** configure a credentialed endpoint that requires L7 constraints; separately simulate absent L7 metadata, missing credential-guard metadata, malformed metadata, and authoritative evaluation error. Use an upstream canary that records headers/body and whether any injected credential arrived. Verify no credential is injected and no protected request reaches the canary unless the intended endpoint/credential binding and policy are established. Include wildcard hosts, aliases, redirects if supported, and policy reload during the request. Runtime status remains `NOT TESTED`.
+
 ## BASELINE-04 — Delegated backend assurance boundary
 
 **Evidence class:** `SOURCE` + `TEST-CONTRACT`. **Status: NOT TESTED — trust in the admitted delegated implementation remains an operator/deployment assurance question.**
