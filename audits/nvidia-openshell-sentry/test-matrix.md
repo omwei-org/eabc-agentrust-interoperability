@@ -89,3 +89,12 @@ See [openshell-rfc0005-conformance-review.md](evidence/openshell-rfc0005-conform
 For OpenShell commit `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, GitHub commit status reports success for the OpenShell Branch Checks / E2E / GPU E2E contexts and Helm Lint. The linked workflow run [38991707083](https://github.com/NVIDIA/OpenShell/actions/runs/38991707083) reports successful Rust test jobs for x86_64 Linux, aarch64 Linux and aarch64 macOS, as well as successful Rust lint/build and other CI jobs.
 
 **Interpretation limit:** this is evidence that the upstream CI jobs reported success for that commit. The surfaced job summary does not enumerate which individual CONNECT/credential-guard tests ran, and these jobs are not an effect-side OpenShell/Sentry runtime canary. Do not mark GEN-01 through GEN-04, credential-injection runtime checks, direct-egress checks, Sentry standalone enforcement, or OpenShell+Sentry composition as PASS on this basis. Those matrix rows remain **NOT TESTED** until the test-specific execution and independent protected-effect observations are recorded.
+
+
+## Follow-up source review at newer commit (not a replacement test baseline)
+
+A separate source-only review was performed at OpenShell `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`; see [focused RFC 0005 Phase 3 call-path audit](evidence/openshell-rfc0005-phase3-callpath-audit.md). This does not change the matrix's original execution baseline `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`.
+
+For the newer source review, the critical unresolved test is the relationship between the primary authorization snapshot and the separately evaluated credential guard. The guard query API returns values without a generation paired with the result; CONNECT instead relies on its captured generation guard and checks before success. Test reloads before/during the guard query and after it but before the final generation check, with an upstream canary proving whether any forbidden request or synthetic credential arrives.
+
+Do not report the above as an executed test. Both original-baseline tests and any tests on the newer commit require separate execution records with exact SHA, command, exit code and output. The commit's upstream CI status is supplementary evidence only; the CI status API does not identify whether these specific guard/reload tests ran.
