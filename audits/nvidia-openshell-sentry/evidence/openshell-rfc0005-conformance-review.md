@@ -31,3 +31,26 @@ Sources:
 4. If the repository is runnable, add a narrowly scoped test asserting the connection-level metadata's source generation and canary-observed no-write behavior on stale decisions. Do not add timing sleeps or claim a vulnerability from source shape alone.
 
 **Disposition:** keep OS-06 open as a bounded RFC-conformance / runtime-validation item. Do not label it exploitable. GEN-01 through GEN-04 remain **NOT TESTED**.
+
+## Follow-up: call-site and current-shape check
+
+A second targeted search for `authorize_egress` surfaced the API definition and test-oriented call sites, but did not surface a production CONNECT call site. The inspected CONNECT handler still performs this sequence on its `decision` object:
+
+1. `hydrate_tls_mode(&mut decision)`
+2. `query_endpoint_credential_guard(...)`
+3. `hydrate_l7_route(&mut decision)`
+4. `hydrate_destination_plan(&mut decision, ...)`
+
+The RFC's own `current-shape.md` describes endpoint metadata lookup and policy evaluation as interleaved, and its implementation plan explicitly labels Phase 1's `EgressDecision` as transitional compatibility hydration—not an atomic OPA result. Phase 3 then calls for one result to materialize the connection-level fields and for shadow-mode mismatch telemetry before cutover.
+
+This strengthens the **conformance-status** concern: the combined API's presence must not be mistaken for evidence that the CONNECT path has completed the Phase 3 cutover. Search results are not a formal whole-repository call-graph proof, so the safe wording is that no production CONNECT call site was found in this targeted inspection, not that none can exist anywhere.
+
+Sources:
+- [Current-shape appendix](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/rfc/0005-sandbox-proxy-egress-adapter/current-shape.md)
+- [Phase 1 transitional decision contract and Phase 3 cutover](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/rfc/0005-sandbox-proxy-egress-adapter/implementation-plan.md)
+- [Observed CONNECT hydration sequence](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/proxy.rs#L2700-L2860)
+- [Combined authorization API](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/opa.rs#L600-L675)
+
+### Revised disposition
+
+Keep OS-06 as **RFC Phase 3 cutover not yet demonstrated in the inspected CONNECT call path**, pending complete call-graph verification and exact-SHA tests. This is an implementation-conformance gap / unverified milestone, not a demonstrated policy bypass. Existing generation guards and per-query locking remain meaningful mitigations. No runtime test was executed; GEN-01 through GEN-04 remain **NOT TESTED**.
