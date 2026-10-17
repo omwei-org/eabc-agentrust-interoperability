@@ -9,16 +9,16 @@ Scope: source-level conformance check for the generation-consistent authorizatio
 
 **Disposition: PHASE 3 CUTOVER NOT DEMONSTRATED IN THE INSPECTED CONNECT PATH. NOT A CONFIRMED SECURITY VULNERABILITY.**
 
-The pinned source shows that the CONNECT handler still materializes security-relevant metadata through multiple helper calls after its initial policy decision:
+The pinned source shows several helper calls after initial authorization, but they are not all independent policy queries. Source inspection of the helper definitions refines the interpretation:
 
-1. `hydrate_tls_mode(&mut decision)`
-2. `query_endpoint_credential_guard(...)`
-3. `hydrate_l7_route(&mut decision)`
-4. `hydrate_destination_plan(&mut decision, ...)`
+1. `hydrate_tls_mode(&mut decision)` projects TLS mode from the first policy config already present in `decision.endpoint.policy_configs`.
+2. `hydrate_l7_route(&mut decision)` builds the L7 route from that same endpoint-config snapshot and tags it with `decision.policy_generation`.
+3. `hydrate_destination_plan(&mut decision, ...)` reads `allowed_ips` from that same snapshot and combines it with the exact-declared-host signal and gateway settings.
+4. `query_endpoint_credential_guard(...)` is the material independent OPA query among these steps; it calls `engine.query_endpoint_credential_guards(&input)` separately.
 
 The same handler pins `decision.policy_generation` before these calls. It rejects a stale generation, validates the materialized L7 route against the captured generation, races upstream dialing against `wait_until_stale()`, and checks the generation again before returning `200 Connection Established`. These are meaningful safeguards against a straightforward reload race.
 
-Separately, `OpaEngine::authorize_egress()` evaluates `data.openshell.sandbox.egress_authorization` under the engine mutex and returns an `EgressAuthorization` containing the action, endpoint configurations, matched endpoints, exact-declared-host signal and generation. Targeted repository search found test-oriented/supervisor call sites, but did not identify this combined API as the sole source of the CONNECT handler's TLS, credential-guard, L7-route and destination-plan metadata. This is a targeted-search result, not a formal proof that no other production caller exists.
+Separately, `OpaEngine::authorize_egress()` evaluates `data.openshell.sandbox.egress_authorization` under the engine mutex and returns an `EgressAuthorization` containing the action, endpoint configurations, matched endpoints, exact-declared-host signal and generation. Targeted repository search found test-oriented/supervisor call sites, but did not identify the combined API as the sole source for every Phase 3 field because credential-guard metadata is queried separately. TLS, L7 route and `allowed_ips`/destination planning in the inspected CONNECT path are projections of the initial `EgressDecision` snapshot, not separate OPA evaluations. This is a targeted call-site search, not a formal proof that no other production caller exists.
 
 Therefore, the defensible finding is about **milestone/conformance status**: Phase 3's single-result materialization is not demonstrated by the inspected CONNECT path. The code inspected also contains generation checks and fail-closed gates, so the source shape alone does not prove mixed-generation use, an authorization bypass, or protected bytes reaching an upstream.
 
@@ -35,7 +35,7 @@ The implementation plan calls for one OPA result from one policy generation to m
 
 It also calls for a generation-pinned request-policy engine, shadow-mode mismatch telemetry, reload-race tests proving each field matches the top-level generation, and stale decisions stopping before upstream request write.
 
-The inspected CONNECT path visibly performs separate hydration/query steps for TLS, credential guard, L7 route and destination. Whether every item in the Phase 3 list is implemented elsewhere or whether the transition is intentionally still in progress requires a complete call graph and field-by-field trace. Do not infer a runtime vulnerability from this difference.
+The inspected CONNECT path uses helper steps for TLS, L7 route and destination, but those helpers project fields from the original authorization snapshot. The credential guard is a separate OPA evaluation. The specific Phase 3 gap is therefore not evidence that TLS/L7/destination necessarily mix generations; it is whether the separate credential-guard query and any remaining Phase 3 fields meet the RFC's single-result materialization requirement, and whether runtime behavior remains safe around reloads. Do not infer a runtime vulnerability from this difference.
 
 ## Source evidence
 
@@ -68,7 +68,7 @@ Record the exact commands, toolchain/platform, exit status and relevant output. 
 
 ### C. Add one narrow effect-side race test
 
-Use a harmless canary upstream and synthetic credentials only. Coordinate a policy reload at deterministic barriers between authorization and metadata materialization, and in the upstream-dial window. The test should capture the generation associated with every materialized field and whether the canary received a request or protected marker.
+Use a harmless canary upstream and synthetic credentials only. Coordinate a policy reload at deterministic barriers before/after the separate credential-guard query and in the upstream-dial window. Capture the authorization generation, guard result/configuration, and whether the canary received a request or protected marker. TLS/L7/destination fields should be checked as projections of the original authorization snapshot, not assumed to be independent OPA reads.
 
 Expected safe behavior:
 - no upstream request is written when the decision or any required field is stale/inconsistent;
@@ -81,9 +81,9 @@ Avoid timing sleeps as the primary synchronization mechanism. Do not log real cr
 
 | Claim | Evidence class | Status |
 |---|---|---|
-| CONNECT calls separate TLS, credential-guard, L7-route and destination hydration helpers | SOURCE | Observed at pinned source |
+| CONNECT calls TLS/L7/destination helper functions; those project from the initial decision snapshot, while credential guard is a separate OPA query | SOURCE | Observed at pinned source |
 | Combined `authorize_egress()` evaluates a combined OPA result under the engine mutex | SOURCE | Observed at pinned source |
-| The combined API is the sole source for all CONNECT metadata | SOURCE | Not demonstrated in targeted call-path inspection |
+| The combined API materializes the credential guard and every Phase 3 field in one OPA result | SOURCE | Not demonstrated; credential guard is separately queried |
 | A reload can cause mixed-generation authorization to reach upstream | HYPOTHESIS | Not proven |
 | A protected request/credential can bypass the intended boundary | RUNTIME | NOT TESTED |
 | RFC 0005 Phase 3 is fully complete for all egress adapters | CONFORMANCE | Not demonstrated by this CONNECT inspection alone |
