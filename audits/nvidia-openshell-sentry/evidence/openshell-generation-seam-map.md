@@ -34,3 +34,15 @@ The inspected CONNECT path already pins a generation, derives TLS mode from the 
 To proceed from source review to a genuine runtime result, obtain a runnable checkout/build environment for this exact commit, add deterministic test-only barriers, and run the canary-backed scenarios. GitHub source reads alone cannot establish runtime behavior.
 
 **Disposition:** all GEN scenarios remain **NOT TESTED**.
+
+## Revision after engine-lock inspection
+
+The pinned source shows that `authorize_egress()` materializes action, endpoint configs, matched endpoints, exact-host signal and generation in one OPA result under the engine mutex. TLS and L7 route are derived from that decision snapshot. The credential-guard query is separate but also serializes on the engine mutex, while reload uses that mutex. Therefore do **not** treat separate helper calls alone as proof of mixed-generation metadata.
+
+Refined runtime priorities:
+1. GEN-01: prove generation publication and credential-guard query serialization at the real barrier; then verify the generation guard rejects the stale CONNECT before protected bytes can pass.
+2. GEN-02: target the final `ensure_current()` / CONNECT-success / relay-startup boundary and observe upstream effects independently.
+3. GEN-03: use existing reload invalidation tests as baseline and add canary evidence for relay shapes whose upstream effects are not already covered.
+4. GEN-04: only instrument independently queried fields or alternate paths. Do not claim TLS/L7 are separate OPA reads in this CONNECT path.
+
+See the addendum in [openshell-os06-generation-review.md](openshell-os06-generation-review.md). Runtime remains NOT TESTED.
