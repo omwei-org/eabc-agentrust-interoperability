@@ -68,3 +68,14 @@ Candidate mapping only, pending comparison with the canonical EABC specification
 - `NON_BYPASSABILITY(B,E)`: proving that network mediation or a trusted stop path remains effective during loss.
 
 No runtime PASS/FAIL is assigned in this source review. The overall audit verdict remains **INCONCLUSIVE**.
+
+## CI evidence checked after this review
+
+GitHub Actions run [38991707083](https://github.com/NVIDIA/OpenShell/actions/runs/38991707083) has successful Rust test jobs for x86_64 Linux and aarch64 Linux on the pinned follow-up commit. The inspected job logs show the command:
+
+```sh
+cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support
+cargo nextest run --locked --config-file .config/nextest.toml --profile ci --manifest-path examples/supervisor-middleware-content-guard/Cargo.toml
+```
+
+The source at `b58e24c` contains `test_forward_relay_guard_blocks_stale_generation_before_upstream_write` in `crates/openshell-supervisor-network/src/proxy.rs` and `credential_guard_does_not_shadow_inspected_endpoint_config` in `crates/openshell-supervisor-network/src/opa.rs`. The run's job conclusion is successful, but the downloaded successful-job logs did not expose individual passing test names under the configured nextest output. Thus this is evidence of broad upstream test execution and green job status, **not** independent confirmation that these two named tests ran and passed, and not a runtime controller-loss/revocation test. The audit's own runtime statuses remain `NOT TESTED`.
