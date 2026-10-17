@@ -3,7 +3,7 @@
 Review date: 2026-10-17  
 Original audit baseline: `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`  
 Follow-up source commit: `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`  
-Runtime status: **NOT TESTED**. This is a source/RFC comparison and test-plan refinement, not a runtime test report.
+Runtime status: **NOT TESTED**. This is a source/RFC comparison and test-plan refinement, not a runtime test report. The two SHAs are separate evidence baselines; this follow-up does not silently rebase the original findings or test matrix.
 
 ## Question
 
@@ -39,7 +39,7 @@ These are meaningful source-level controls. They narrow the hypothesis: it would
 
 They do not, by themselves, establish that every sibling metadata field (credential guard, TLS mode, destination allowlist and exact-host signals) is materialized atomically from the same generation as the primary L4 decision. In the inspected source, the explicit equality check is visible for the L7 route generation; the separate credential-guard query is passed the already-created decision's identity fields but does not visibly take an expected-generation argument at its call boundary. This is a race-test lead, not proof of a defect: the engine may serialize or otherwise constrain the relevant state, and runtime ordering must be established before making a vulnerability claim.
 
-The RFC discrepancy is therefore **partially narrowed, not fully closed**. Source shows route-generation rejection and stale-relay machinery, while the stronger target of one atomic authorization result still requires verification against all metadata paths and the exact commit under test.
+The source-level discrepancy is **partially narrowed, not fully closed**. Source shows route-generation rejection and stale-relay machinery, and TLS/L7/destination values in the inspected CONNECT path are projections of the original snapshot. The credential guard is a separate OPA evaluation; its API returns values without a paired generation, while CONNECT relies on its captured generation guard and later checks. The broad mixed-generation claim for TLS/L7/destination is not supported by this source trace. The remaining conformance question depends on whether Phase 3 was declared planned, in progress or complete for the exact commit; the RFC sources inspected describe it as a later cutover after shadow comparison but do not establish a commit-specific completion status.
 
 ## GEN-01 through GEN-04 — runtime falsification plan
 
@@ -71,7 +71,7 @@ Source references:
 - [Reload lock and generation publication](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/opa.rs#L735-L830)
 - [CONNECT generation guard, credential guard, route validation and dial guard](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-supervisor-network/src/proxy.rs#L2700-L2965)
 
-**Revised interpretation:** the broad claim that CONNECT's TLS, L7 route, destination metadata, and top-level authorization are independently queried and can therefore mix generations is not supported by this inspected path. Most of those fields come from one authorization snapshot. The remaining runtime question is narrower: whether a reload at the precise boundaries around the separate credential-guard query, upstream dial completion, CONNECT success, or relay startup can produce an externally observable policy violation despite the generation guard. The existing source substantially reduces that likelihood, but source inspection is not a runtime falsification test.
+**Revised interpretation:** the broad claim that CONNECT's TLS, L7 route, destination metadata, and top-level authorization are independently queried and can therefore mix generations is not supported by this inspected path. Most of those fields come from one authorization snapshot. The remaining runtime question is narrower: whether a reload around the separate credential-guard query, upstream dial completion, CONNECT success, or relay startup can produce an externally observable policy violation despite the generation guard. The source indicates that the credential-guard OPA evaluation is serialized against reload by the engine mutex, but the guard result itself is not returned with a generation. The exact safety claim to test is therefore the handler's generation binding and protected-effect outcome, not an assumed concurrent mutation of the OPA engine. Source inspection is not a runtime falsification test.
 
 GEN-01 should now focus on proving the serialisation/guard behavior rather than assuming mixed-generation metadata. GEN-02 should test the final-check-to-CONNECT-success boundary and independently observe whether a stale relay can carry any protected bytes. GEN-03 should reuse existing relay-reload regression tests and add upstream-side observation only where missing. GEN-04 should not repeat the disproven premise that TLS and L7 are separate OPA queries in this CONNECT path; target only fields actually queried independently and paths not covered by the snapshot.
 
