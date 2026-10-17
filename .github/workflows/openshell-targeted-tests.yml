@@ -10,7 +10,7 @@ on:
 
 concurrency:
   group: openshell-targeted-tests-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -119,14 +119,14 @@ jobs:
             # Use a tool-specific overlay so upstream OpenShell files remain untouched.
             printf '[profile.ci.junit]\npath = "%s"\nstore-success-output = true\n' "$junit" > "$tool_config"
 
-            command="cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E 'test(^${filter}$)' --tool-config-file openshell-audit:$tool_config"
+            command="cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E 'test(/(^|::)${filter}$/)' --tool-config-file openshell-audit:$tool_config"
             {
               echo "listed_test_match=$(grep -F -- "$filter" "$listed" | head -n 1)"
               echo "command=$command"
             } >> "$meta"
 
             set +e
-            cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E "test(^${filter}$)" --tool-config-file "openshell-audit:$tool_config" > "$log" 2>&1
+            cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E "test(/(^|::)${filter}$/)" --tool-config-file "openshell-audit:$tool_config" > "$log" 2>&1
             rc=$?
             set -e
             cat "$log"
