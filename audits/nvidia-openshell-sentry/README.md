@@ -29,7 +29,8 @@ Do not convert a source-level test into a claim of runtime validation. Do not re
 
 - [Findings register](findings.md)
 - [Runtime test matrix](test-matrix.md)
-- [OpenShell pinned-source evidence](evidence/openshell-a4c848a.md)
+- [OpenShell pinned-source evidence — original baseline `a4c848a`](evidence/openshell-a4c848a.md)
+- [OpenShell follow-up source review — newer commit `b58e24c`](evidence/openshell-b58e24c.md)
 
 ## Initial baseline
 
@@ -42,6 +43,12 @@ The initial findings and original matrix remain scoped to `a4c848adbddd0b4732fd7
 The source review found that the older common contract explicitly required four outer-fence guarantees, while the newer common contract binds native evidence to a generation and explicitly warns that the digest is not independent proof of enforcement. This is an **assurance-contract difference, not a confirmed vulnerability**. Partial counter-evidence has now been inspected: Docker and Podman verify actual container network configuration, while the VM source uses QEMU `-nic none` and configures libkrun with vsock/virtiofs rather than an IP NIC. These source-level controls reduce the basis for a claim of a direct-egress defect, but they do not replace runtime evidence or settle revocation/controller-loss behavior, all platform variants, or delegated-backend assurance.
 
 Do not silently replace the original pinned baseline. For any new runtime result, state the exact commit, driver, environment and evidence artifacts. A newer-upstream review should use a distinct execution record and revise scope only after examining the new validation paths.
+
+## Follow-up source review
+
+A targeted follow-up review was recorded for OpenShell commit `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`. It adds source counter-evidence for generation guards, credential guard behavior, driver-level isolation checks and delegated-backend admission. It is **not** a complete re-audit of the newer commit, and no runtime tests were executed. The original findings and runtime matrix remain pinned to `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`; do not transfer findings or test results across commits without a commit-specific review and execution record.
+
+The current policy schema documents `allow_uninspected_credentials` as a security-sensitive explicit opt-in for credentialed traffic that cannot be inspected. See [NVIDIA policy schema](https://docs.nvidia.com/openshell/latest/reference/policy-schema). Documentation is `DOC-CLAIM`, not runtime evidence.
 
 ## Working rule
 
