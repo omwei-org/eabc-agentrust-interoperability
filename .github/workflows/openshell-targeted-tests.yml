@@ -50,7 +50,7 @@ jobs:
             echo "checkout_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > ../artifacts/source-checkout.txt
 
-      - name: Install Rust 1.95.0
+      - name: Install Rust toolchain from pinned OpenShell source
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.95.0
@@ -60,10 +60,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential clang cmake pkg-config libz3-dev
 
-      - name: Install cargo-nextest
-        run: cargo install cargo-nextest --locked
+      - name: Install pinned cargo-nextest
+        run: cargo install cargo-nextest --version 0.9.143 --locked
 
-      - name: Run each named regression test and record exit codes
+      - name: List and run each named regression test
         shell: bash
         run: |
           set -uo pipefail
@@ -74,45 +74,111 @@ jobs:
           run_one() {
             name="$1"
             filter="$2"
-            junit="../artifacts/$name.junit.xml"
+            junit="$GITHUB_WORKSPACE/artifacts/$name.junit.xml"
             log="../artifacts/$name.log"
             meta="../artifacts/$name.meta.txt"
-            command="cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test($filter)' --junit $junit"
+            listed="../artifacts/$name.list.txt"
+            tool_config="/tmp/nextest-$name.toml"
+
             {
               echo "test_name=$filter"
               echo "target_sha=$(git rev-parse HEAD)"
-              echo "command=$command"
+              echo "cargo_nextest_version=$(cargo nextest --version)"
               echo "started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             } > "$meta"
 
             set +e
-            cargo nextest run --locked --profile ci -p openshell-supervisor-network -E "test($filter)" --junit "$junit" > "$log" 2>&1
+            cargo nextest list --locked --profile ci --workspace --features openshell-server/test-support > "$listed" 2>&1
+            list_rc=$?
+            set -e
+            cat "$listed"
+
+            if [ "$list_rc" -ne 0 ]; then
+              echo "result=HARNESS ERROR" | tee -a "$meta"
+              echo "nextest_list_exit_code=$list_rc" | tee -a "$meta"
+              overall_rc=1
+              return
+            fi
+
+            if ! grep -F -- "$filter" "$listed" >/dev/null; then
+              echo "result=NOT FOUND" | tee -a "$meta"
+              echo "nextest_list_exit_code=0" | tee -a "$meta"
+              overall_rc=1
+              return
+            fi
+
+            # Nextest writes JUnit via profile configuration, not a --junit CLI flag.
+            # Use a tool-specific overlay so upstream OpenShell files remain untouched.
+            printf '[profile.ci.junit]\npath = "%s"\nstore-success-output = true\n' "$junit" > "$tool_config"
+
+            command="cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E test($filter) --tool-config-file openshell-audit:$tool_config"
+            {
+              echo "listed_test_match=$(grep -F -- "$filter" "$listed" | head -n 1)"
+              echo "command=$command"
+            } >> "$meta"
+
+            set +e
+            cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E "test($filter)" --tool-config-file "openshell-audit:$tool_config" > "$log" 2>&1
             rc=$?
             set -e
             cat "$log"
             echo "cargo_nextest_exit_code=$rc" | tee -a "$meta"
 
-            if [ "$rc" -eq 0 ]; then
-              if [ ! -s "$junit" ]; then
-                echo "ERROR: nextest returned 0 but did not create JUnit output" | tee -a "$meta"
-                rc=2
-              else
-                set +e
-                python3 -c 'import sys, xml.etree.ElementTree as E; r=E.parse(sys.argv[1]).getroot(); c=list(r.iter("testcase")); f=list(r.iter("failure"))+list(r.iter("error")); print(f"junit_testcases={len(c)}"); print(f"junit_failures_or_errors={len(f)}"); sys.exit(0 if c and not f else 2)' "$junit"
-                junit_rc=$?
-                set -e
-                if [ "$junit_rc" -ne 0 ]; then
-                  echo "ERROR: JUnit has no testcases or reports failures/errors" | tee -a "$meta"
-                  rc=2
-                fi
-              fi
+            if [ ! -s "$junit" ]; then
+              echo "result=HARNESS ERROR" | tee -a "$meta"
+              echo "reason=JUnit report missing or empty" | tee -a "$meta"
+              overall_rc=1
+              return
             fi
 
-            echo "final_exit_code=$rc" | tee -a "$meta"
-            if [ "$rc" -ne 0 ]; then overall_rc=1; fi
+            set +e
+            python3 - "$junit" "$filter" "$rc" >> "$meta" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          report, target, run_rc = sys.argv[1], sys.argv[2], int(sys.argv[3])
+          try:
+              root = ET.parse(report).getroot()
+          except Exception as exc:
+              print("result=HARNESS ERROR")
+              print(f"junit_parse_error={exc}")
+              raise SystemExit(2)
+
+          cases = list(root.iter("testcase"))
+          selected = [
+              case for case in cases
+              if target == case.attrib.get("name", "")
+              or target in case.attrib.get("name", "")
+              or target in case.attrib.get("classname", "")
+          ]
+          print(f"junit_testcases_total={len(cases)}")
+          print(f"junit_matching_testcases={len(selected)}")
+          if not selected:
+              print("result=HARNESS ERROR")
+              print("reason=JUnit does not contain the selected named test")
+              raise SystemExit(2)
+
+          failures = [node for case in selected for node in list(case.findall("failure")) + list(case.findall("error"))]
+          skipped = [node for case in selected for node in case.findall("skipped")]
+          if failures:
+              print("result=FAIL")
+              print(f"junit_failures_or_errors={len(failures)}")
+              raise SystemExit(1)
+          if skipped:
+              print("result=NOT TESTED")
+              print(f"junit_skipped={len(skipped)}")
+              raise SystemExit(2)
+          if run_rc != 0:
+              print("result=HARNESS ERROR")
+              print("reason=nextest returned nonzero but matching JUnit testcase has no failure/error")
+              raise SystemExit(2)
+          print("result=PASS")
+          PY
+            junit_rc=$?
+            set -e
+            if [ "$junit_rc" -ne 0 ]; then overall_rc=1; fi
           }
 
-          set -e
           run_one stale_generation_fails_before_relay_context_is_created stale_generation_fails_before_relay_context_is_created
           run_one test_forward_relay_guard_blocks_stale_generation_before_upstream_write test_forward_relay_guard_blocks_stale_generation_before_upstream_write
           run_one credential_guard_does_not_shadow_inspected_endpoint_config credential_guard_does_not_shadow_inspected_endpoint_config
@@ -127,7 +193,7 @@ jobs:
           for f in ../artifacts/*.meta.txt; do cat "$f" >> ../artifacts/run-summary.txt; done
           exit "$overall_rc"
 
-      - name: Upload logs, metadata and JUnit results
+      - name: Upload logs, metadata, test listings and JUnit results
         if: always()
         uses: actions/upload-artifact@v4
         with:
