@@ -83,6 +83,23 @@ Evidence collection is pending. No Sentry version has yet been pinned. Before ma
 
 Integration evidence collection is pending. Pin the OpenShell commit plus exact Sentry software/firmware version, device/model, deployment mode and configuration. Establish the actual commit path for the protected effect and test failure, policy change, alternate path and downgrade cases. Do not infer composition guarantees from individual component claims. Status: **NOT TESTED**.
 
+
+## Sentry and composition — public claims only
+
+- Official NVIDIA announcement, published 28 September 2026: https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Launches-Open-Agent-Safety-Platform-to-Secure-Agents-From-Testing-to-Deployment/
+- Relevant announcement passage: https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Launches-Open-Agent-Safety-Platform-to-Secure-Agents-From-Testing-to-Deployment/ (description of OpenShell as software runtime boundary and Sentry/BlueField-4 as an out-of-band hardware layer; announcement lines 117–121).
+
+**Evidence class: `DOC-CLAIM` only.** This is NVIDIA's description of intended architecture and capabilities. It does not establish the behavior of a particular firmware/software release, prove all paths to a protected effect are mediated, or show conformance to EABC.
+
+### Candidate EABC mapping — unverified
+
+- `NON_BYPASSABILITY(B,E)`: must identify the concrete protected effect and enumerate every commit path, including local/alternate paths; vendor positioning does not prove complete mediation.
+- `INTEGRITY_CTX(C,B,E)`: must demonstrate binding among requester/agent identity, policy decision, target, request context and the actual protected effect.
+- `INTEGRITY_STATE(B,E)`: test stale authorization, policy update, reset, downgrade and component failure if these can affect boundary satisfaction.
+- `ENFORCEMENT_INDEPENDENCE` is an EBP assurance constraint, not an EABC semantic property; it requires evidence about the enforcement path's independence from the compromised software under the declared adversary model.
+
+No exact Sentry firmware/software version, device configuration, or integrated runtime evidence has been pinned in this audit. Sentry standalone and OpenShell+Sentry composition remain `NOT TESTED`.
+
 ## Evidence interpretation
 
 This file records pinned references and reviewer observations, not runtime logs. Add execution records separately with date, environment, exact commands, versions/configuration, observed client-side and effect-side results, artifacts, and status (`PASS`, `FAIL`, or `INCONCLUSIVE`). Keep failed and inconclusive attempts. Do not mark a test as run based on the presence of source code alone.
