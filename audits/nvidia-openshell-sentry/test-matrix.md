@@ -66,3 +66,8 @@ For every attempted row, add:
 - Scope limitations and whether the result applies to Docker, Podman, VM, Sentry, or their composition.
 
 Do not mark a test `PASS` based only on a unit-test name, code inspection, or supervisor logs when the claim concerns whether a protected effect or credential reached its destination.
+
+
+## OS-06 source follow-up
+
+The OS-06 RFC/source comparison is recorded in [`evidence/openshell-os06-generation-review.md`](evidence/openshell-os06-generation-review.md). The source contains route-generation checks and stale-relay machinery, but the runtime matrix remains necessary to determine whether all connection metadata and credential-guard decisions remain generation-consistent under reload. In particular, run GEN-01 through GEN-04 with deterministic barriers and an independent upstream canary. All remain **NOT TESTED**; do not change status based on this source review.
