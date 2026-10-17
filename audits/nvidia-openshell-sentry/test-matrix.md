@@ -76,3 +76,6 @@ The OS-06 RFC/source comparison is recorded in [`evidence/openshell-os06-generat
 The detailed execution protocol for GEN-01 through GEN-04 is recorded in [openshell-generation-runtime-protocol.md](evidence/openshell-generation-runtime-protocol.md). It specifies policy fixtures, deterministic barrier placement, independent upstream canary observations, evidence manifests, and PASS/FAIL/INCONCLUSIVE criteria. It is a plan only; all GEN rows remain **NOT TESTED** until actual runs and artifacts are recorded.
 ## Pinned-source seam map
 The concrete CONNECT code order and recommended deterministic test-hook locations for GEN-01 through GEN-04 are documented in [openshell-generation-seam-map.md](evidence/openshell-generation-seam-map.md). This is still source review only; no runtime scenario has been executed and all GEN statuses remain **NOT TESTED**.
+
+## GEN-01 regression coverage review
+The pinned-source review of existing stale-generation relay and credential-guard tests is recorded in [openshell-gen01-regression-coverage.md](evidence/openshell-gen01-regression-coverage.md). Existing tests lower the plausibility of a simple stale-generation race, but do not themselves establish canary-observed upstream behavior for the complete CONNECT path. No new runtime test was executed; GEN-01 through GEN-04 remain **NOT TESTED**.
