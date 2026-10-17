@@ -37,7 +37,7 @@ Runtime validation: **NOT TESTED**. No runtime reproduction attempts were perfor
 
 **EABC relevance:** `INTEGRITY_CTX(C,B,E)` for endpoint/credential binding, `EXCLUSIVITY` for preventing use outside the authorized endpoint, and `NON_BYPASSABILITY(B,E)` only if all paths to the protected effect are mediated. The test contract alone does not establish those EABC properties.
 
-Pinned source test: [`stable_external_placeholders.rs`](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/e2e/rust/tests/stable_external_placeholders.rs).
+Pinned source test: [`stable_external_placeholders.rs`, lines 1020–1105](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/e2e/rust/tests/stable_external_placeholders.rs#L1020-L1105).
 
 The file is gated by `e2e-docker`. Tests named `persistent_external_placeholder_rotation_and_revocation` and `ordinary_external_placeholder_keeps_revoked_assertion_after_rotation` exercise a synthetic `tools/call` request over a sandbox HTTPS path, endpoint binding controls, and credential rotation/revocation. This is not a complete MCP session or full agent-runtime test. Do not describe it as runtime-passed without a run record. [Pinned test, lines 1020–1105](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/e2e/rust/tests/stable_external_placeholders.rs#L1020-L1105).
 
@@ -61,7 +61,7 @@ The separate credential-guard OPA query does not itself return a generation. Tha
 
 **EABC relevance:** `INTEGRITY_CTX(C,B,E)` and `NON_BYPASSABILITY(B,E)`: a fallback must not silently weaken the boundary applicable to the protected effect.
 
-Pinned test file: [`compatibility.rs`](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/tests/compatibility.rs).
+Pinned test file: [`compatibility.rs`, lines 270–345](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/tests/compatibility.rs#L270-L345).
 
 Tests cover missing authorized L7 metadata falling back to L4-only defaults and an authoritative evaluation error denying rather than falling back. This is a useful distinction, but it does not prove every production retrieval/decode failure follows the same fail-closed path. More importantly, the L4-only fallback itself needs risk assessment for endpoints using credential injection: determine whether the weaker L4 decision can still permit a protected request or expose injected credentials when L7 metadata is missing. [Pinned compatibility tests, lines 270–345](https://github.com/NVIDIA/OpenShell/blob/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317/crates/openshell-supervisor-network/src/proxy/tests/compatibility.rs#L270-L345).
 
