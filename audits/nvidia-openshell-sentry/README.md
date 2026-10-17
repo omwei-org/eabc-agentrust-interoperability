@@ -35,6 +35,14 @@ Do not convert a source-level test into a claim of runtime validation. Do not re
 
 OpenShell source review is pinned to [`a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`](https://github.com/NVIDIA/OpenShell/commit/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317). The review environment could not resolve GitHub/raw GitHub hosts for local checkout/runtime testing. Source/documentation inspection was performed through repository connector access; no runtime tests were executed. Therefore, runtime status remains NOT TESTED unless a later dated execution record is added.
 
+## Upstream drift — separate review required
+
+The initial findings and original matrix remain scoped to `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`. A later comparison checked upstream commit `b58e24c9dabd6d4bcf2b7186592d3ad50646541b` (13 commits ahead at the time of comparison). That range materially changed the isolation interface, provisioning-evidence contract, RPC runtime and conformance tests. See [BASELINE-01 and BASELINE-02 in the findings register](findings.md) and the [baseline-drift gate and added tests](test-matrix.md).
+
+The source review found that the older common contract explicitly required four outer-fence guarantees, while the newer common contract binds opaque native evidence to a generation and explicitly warns that the digest is not independent proof of enforcement. This is an **assurance-contract difference, not a confirmed vulnerability**. The newer trusted driver/backend validation paths and runtime effects must be assessed before concluding whether equivalent guarantees remain.
+
+Do not silently replace the original pinned baseline. For any new runtime result, state the exact commit, driver, environment and evidence artifacts. A newer-upstream review should use a distinct execution record and revise scope only after examining the new validation paths.
+
 ## Working rule
 
 Every finding must state: claim, EABC relevance, evidence and pinned reference, counter-evidence/limits, status, and next falsification test. Keep vendor-specific features distinct from EABC conformance claims.
