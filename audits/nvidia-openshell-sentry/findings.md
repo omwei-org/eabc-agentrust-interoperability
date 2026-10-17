@@ -2,12 +2,13 @@
 
 Date opened: 2026-10-17  
 OpenShell source baseline: `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`  
-Runtime validation: **NOT TESTED**. No runtime reproduction attempts were performed in this audit.
+Runtime validation: **NOT TESTED**. No runtime reproduction attempts were performed in this audit. This register assesses only the pinned commit below; upstream drift is recorded separately as BASELINE-01.
 
 ## Summary
 
 | ID | Area | Evidence class | EABC criterion | Current assessment | Test status |
 |---|---|---|---|---|---|
+| BASELINE-01 | Upstream source baseline drift | SOURCE | NON_BYPASSABILITY(B,E); INTEGRITY_DEF(B); INTEGRITY_STATE(B,E); INTEGRITY_CTX(C,B,E) | Current upstream has material isolation-interface and conformance-harness changes; no claim that those changes are vulnerabilities or regressions | NOT TESTED — newer baseline not audited |
 | OS-01 | Network paths / direct-egress bypass | DOC-CLAIM + SOURCE + TEST-CONTRACT | NON_BYPASSABILITY(B,E); INTEGRITY_CTX(C,B,E) | Driver-specific controls and named tests identified; runtime behavior unknown | NOT TESTED — runtime bypass status unknown |
 | OS-02 | Credential binding / rotation / revocation | TEST-CONTRACT | INTEGRITY_CTX(C,B,E); EXCLUSIVITY; NON_BYPASSABILITY(B,E) | E2E source test contract covers endpoint binding and credential rotation/revocation | NOT TESTED — source test contract only |
 | OS-06 | Authorization generation and credential guard | SOURCE + TEST-CONTRACT + DOC-CLAIM | INTEGRITY_STATE(B,E); INTEGRITY_CTX(C,B,E); NON_BYPASSABILITY(B,E) | Generation guards found; race and RFC/implementation discrepancy remain unresolved | NOT TESTED — race hypothesis not validated |
@@ -15,6 +16,22 @@ Runtime validation: **NOT TESTED**. No runtime reproduction attempts were perfor
 | OS-08 | VM host bind mounts / virtiofs | DOC-CLAIM + SOURCE + TEST-CONTRACT | NON_BYPASSABILITY(B,E); INTEGRITY_DEF(B); INTEGRITY_CTX(C,B,E) | Several controls identified; complete host-path isolation unverified | NOT TESTED — host-path escape status unknown |
 | SG-01 | Sentry standalone enforcement | NOT ASSESSED | To be determined from concrete protected effect and boundary | Evidence not yet collected | NOT TESTED — evidence collection pending |
 | COM-01 | OpenShell + Sentry composition | NOT ASSESSED | To be determined for the composed enforcement boundary | Evidence not yet collected; do not infer composition guarantees from component claims | NOT TESTED — integration evidence pending |
+
+## BASELINE-01 — Upstream source baseline drift
+
+**Evidence class:** `SOURCE`. **Status: NOT TESTED — newer baseline not audited.**
+
+**Observation:** The audit baseline is pinned to `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`. At the time of this check, NVIDIA/OpenShell `main` was `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, 13 commits ahead of the pinned baseline. The comparison reports 225 changed files across the full repository. This does not automatically invalidate commit-specific observations, but it means they must not be presented as an audit of current `main`.
+
+**Relevant changed surfaces:** `crates/openshell-isolation-interface/src/contract.rs` changed from 1,076 to 626 lines and now describes validated data shared by an RPC client/server rather than the earlier runtime-selectable trait contract; `crates/openshell-isolation-interface/tests/backend_conformance.rs` changed from 907 to 140 lines, with its header now describing shared-data validation and lifecycle/process behavior tested over RPC. Driver isolation modules and network-recovery tests also changed. These are architectural/test-harness changes to review, not proof that coverage or enforcement weakened; test coverage may have moved to other files.
+
+**EABC relevance:** Re-audit the concrete enforcement boundary and substrate before making claims about `NON_BYPASSABILITY(B,E)`, `INTEGRITY_DEF(B)`, `INTEGRITY_STATE(B,E)`, or `INTEGRITY_CTX(C,B,E)`. A conformance harness change is not itself evidence of EABC conformance or non-conformance.
+
+**Pinned comparison evidence:** [baseline commit](https://github.com/NVIDIA/OpenShell/commit/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317); [checked upstream commit](https://github.com/NVIDIA/OpenShell/commit/b58e24c9dabd6d4bcf2b7186592d3ad50646541b); [compare the 13-commit range](https://github.com/NVIDIA/OpenShell/compare/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317...b58e24c9dabd6d4bcf2b7186592d3ad50646541b); [isolation contract at checked upstream commit](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-isolation-interface/src/contract.rs); [backend conformance tests at checked upstream commit](https://github.com/NVIDIA/OpenShell/blob/b58e24c9dabd6d4bcf2b7186592d3ad50646541b/crates/openshell-isolation-interface/tests/backend_conformance.rs).
+
+**Next step:** keep the current findings explicitly commit-scoped. Add a follow-up review of the changed isolation interface, RPC protocol, replacement conformance tests, driver implementations and network recovery behavior before making any claim about current upstream `main`. Do not silently move the pinned baseline.
+
+---
 
 ## OS-01 — Network paths and direct-egress bypass
 
