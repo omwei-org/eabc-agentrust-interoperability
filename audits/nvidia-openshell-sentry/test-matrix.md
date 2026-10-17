@@ -11,6 +11,10 @@ This is a test plan, not a test report. No runtime tests are represented as exec
 
 Do not use `NOT REPRODUCED` unless an actual reproduction attempt ran and its conditions/results are recorded. Evidence class is separate from test result: `DOC-CLAIM`, `SOURCE`, `TEST-CONTRACT`, `RUNTIME`.
 
+## Baseline-drift gate
+
+Before treating this matrix as applicable to current upstream `main`, review BASELINE-01 in `findings.md`. The current matrix is pinned to OpenShell `a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`; current upstream was observed at `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`. Do not replace the baseline in place. Either execute this matrix against the pinned baseline, or create a separately versioned matrix and evidence record for the newer commit, after reviewing the changed isolation contract, RPC protocol, conformance tests, driver implementations and network recovery behavior.
+
 ## Test matrix
 
 | ID | Target | Test | Expected safe result | Evidence to capture, including effect-side observation | Evidence class at planning stage | EABC criterion | Status |
