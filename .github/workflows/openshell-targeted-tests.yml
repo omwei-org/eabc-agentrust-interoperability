@@ -104,7 +104,20 @@ jobs:
           if not cases or failures:
               raise SystemExit(2)
           PY
+                set +e
+                python3 - "$junit" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          cases = list(root.iter("testcase"))
+          failures = list(root.iter("failure")) + list(root.iter("error"))
+          print(f"junit_testcases={len(cases)}")
+          print(f"junit_failures_or_errors={len(failures)}")
+          if not cases or failures:
+              raise SystemExit(2)
+          PY
                 junit_rc=$?
+                set -e
                 if [ "$junit_rc" -ne 0 ]; then
                   echo "ERROR: JUnit had no testcases or reported failures/errors" | tee -a "../artifacts/$name.meta.txt"
                   rc=2
