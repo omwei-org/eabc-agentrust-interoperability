@@ -82,3 +82,10 @@ The pinned-source review of existing stale-generation relay and credential-guard
 
 ## OS-06 RFC 0005 conformance review
 See [openshell-rfc0005-conformance-review.md](evidence/openshell-rfc0005-conformance-review.md) and the refined [Phase 3 CONNECT call-path audit](evidence/openshell-rfc0005-phase3-callpath-audit.md). Source inspection at `b58e24c9dabd6d4bcf2b7186592d3ad50646541b` shows TLS, L7 route and destination planning are projected from the initial authorization snapshot; the credential guard is the material separate OPA evaluation. Therefore the test priority is not to assume arbitrary mixed-generation fields, but to test alignment of the separate credential-guard result across policy reload, stale-generation rejection, upstream dial completion and relay startup. Existing locking, generation guards and overlap regression coverage are counter-evidence, not runtime proof. All relevant tests and canary scenarios remain **NOT TESTED**.
+
+
+## Upstream CI evidence for reviewed follow-up commit
+
+For OpenShell commit `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, GitHub commit status reports success for the OpenShell Branch Checks / E2E / GPU E2E contexts and Helm Lint. The linked workflow run [38991707083](https://github.com/NVIDIA/OpenShell/actions/runs/38991707083) reports successful Rust test jobs for x86_64 Linux, aarch64 Linux and aarch64 macOS, as well as successful Rust lint/build and other CI jobs.
+
+**Interpretation limit:** this is evidence that the upstream CI jobs reported success for that commit. The surfaced job summary does not enumerate which individual CONNECT/credential-guard tests ran, and these jobs are not an effect-side OpenShell/Sentry runtime canary. Do not mark GEN-01 through GEN-04, credential-injection runtime checks, direct-egress checks, Sentry standalone enforcement, or OpenShell+Sentry composition as PASS on this basis. Those matrix rows remain **NOT TESTED** until the test-specific execution and independent protected-effect observations are recorded.
