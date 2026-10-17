@@ -121,6 +121,7 @@ jobs:
             echo "target_repository=NVIDIA/OpenShell"
             echo "target_sha=$(git rev-parse HEAD)"
             echo "toolchain=$(rustc --version)"
+            echo "cargo_nextest=$(cargo nextest --version)"
             echo "finished_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > ../artifacts/run-summary.txt
           for f in ../artifacts/*.meta.txt; do cat "$f" >> ../artifacts/run-summary.txt; done
