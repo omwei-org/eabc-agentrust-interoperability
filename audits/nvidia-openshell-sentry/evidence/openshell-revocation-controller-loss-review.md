@@ -95,3 +95,16 @@ cargo nextest run --locked --config-file .config/nextest.toml --profile ci --man
 ```
 
 The source at `b58e24c` contains `test_forward_relay_guard_blocks_stale_generation_before_upstream_write` in `crates/openshell-supervisor-network/src/proxy.rs` and `credential_guard_does_not_shadow_inspected_endpoint_config` in `crates/openshell-supervisor-network/src/opa.rs`. The run's job conclusion is successful, but the downloaded successful-job logs did not expose individual passing test names under the configured nextest output. Thus this is evidence of broad upstream test execution and green job status, **not** independent confirmation that these two named tests ran and passed, and not a runtime controller-loss/revocation test. The audit's own runtime statuses remain `NOT TESTED`.
+
+## Targeted test execution and artifact check
+
+The GitHub Actions run exposes one artifact, `compatibility-review-run-38991707083-attempt-1`. I downloaded and inspected its contents. It contains `report.json`, `report.md`, and `comment.md` for an **advisory API/SDK compatibility review**, not JUnit results or Rust test output. It therefore cannot establish that either named Rust regression test executed or passed. No JUnit artifact was present in the run's artifact listing.
+
+The intended exact-SHA commands, after checking `crates/openshell-supervisor-network/Cargo.toml` (package name: `openshell-supervisor-network`), are:
+
+```sh
+cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test(test_forward_relay_guard_blocks_stale_generation_before_upstream_write)'
+cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test(credential_guard_does_not_shadow_inspected_endpoint_config)'
+```
+
+These commands were **not executed in this environment** because the Rust toolchain is unavailable (`cargo: command not found`). Do not treat the commands above as results. To close this item, run them in a Rust-enabled checkout at exact commit `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, recording the checkout SHA, each command, exit code, and nextest output. These unit/regression tests would still not substitute for the separate runtime revocation/controller-loss tests.
