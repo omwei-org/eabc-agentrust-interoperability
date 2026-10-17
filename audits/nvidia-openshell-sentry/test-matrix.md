@@ -1,39 +1,51 @@
 # Runtime test matrix — OpenShell / Sentry
 
-This is a test plan, not a test report. All rows begin **NOT TESTED** until an execution record is added. Run only in an isolated lab with synthetic credentials and harmless canary data.
+This is a test plan, not a test report. No runtime tests are represented as executed. Every row starts with status `NOT TESTED`. Run only in an isolated lab using synthetic credentials and harmless canary data.
 
-| ID | Target | Test | Expected fail-closed / safe result | Evidence to capture | Status |
-|---|---|---|---|---|---|
-| NET-01 | Docker | Direct TCP to public IP without configured relay | No direct egress | Exact image/commit, command, packet capture, broker logs | NOT TESTED |
-| NET-02 | Docker / Podman / VM separately | Direct UDP, DNS, alternate socket family and socket rebind attempts | Unsupported or unauthorized path rejected | Per-driver results and syscall/network traces | NOT TESTED |
-| NET-03 | Each driver | Kill/restart supervisor or broker while a connection is attempted | No fail-open direct path | Failure timing, logs, packet capture | NOT TESTED |
-| NET-04 | Each driver | Private, link-local, metadata IPs; DNS rebinding and mixed A/AAAA answers | Denied unless explicitly authorized by policy | Resolver answers, decision logs, upstream canary logs | NOT TESTED |
-| CRED-01 | Docker E2E | Wrong host/port/path, alias, untrusted CA, disallowed binary | Backend sees no accepted protected call | Backend counters, request trace, test output | NOT TESTED |
-| CRED-02 | Docker E2E | Rotate provider credential A→B; compare persistent and ordinary references; revoke A | Persistent reference uses current B; revoked ordinary reference rejected | Provider state, counters, output | NOT TESTED |
-| GEN-01 | Supervisor proxy | Reload policy between main authorization and credential-guard query | Stale decision rejected before upstream protected bytes | Barrier timestamps, generation IDs, upstream capture | NOT TESTED |
-| GEN-02 | Supervisor proxy | Reload between final generation check and CONNECT 200 | Stale CONNECT rejected or immediately closed before protected bytes | Proxy logs, client transcript, upstream capture | NOT TESTED |
-| GEN-03 | Active relay | Publish fail-closed generation during raw/HTTP relay | Stale relay closes promptly | Generation timeline, socket traces, bytes transferred after reload | NOT TESTED |
-| EVAL-01 | OPA/proxy | Compare absent L7 metadata with authoritative evaluation error | Only documented missing-metadata compatibility case may use fallback; evaluation error denies | OPA inputs/results and proxy decisions | NOT TESTED |
-| VM-01 | VM/libkrun | RO and RW virtiofs behavior with temporary share | RO cannot mutate host share; RW changes only intended share | Host hashes, guest commands, logs, versions | NOT TESTED |
-| VM-02 | VM/libkrun | Put harmless canary file outside allowed share on same filesystem; attempt access from guest | Guest cannot access outside share due to effective host isolation | Host mount namespace/process config, guest output, audit logs | NOT TESTED |
-| VM-03 | VM/libkrun | Symlink final component, symlink parent component, replace source during provisioning | Invalid path rejected; no unintended host path exposed | Race script, filesystem layout, logs | NOT TESTED |
-| VM-04 | VM/libkrun | Attempt reserved/overlapping guest targets and force virtiofs mount failure | Provision/mount fails rather than silently continuing without intended semantics | Manifest, init logs, guest mount table | NOT TESTED |
-| SENTRY-01 | Sentry standalone | Identify exact protected effect and enumerate every commit path, including alternate/local paths | Every path to protected effect passes the claimed enforcement boundary | Versioned architecture, wiring, bypass attempts | NOT TESTED |
-| SENTRY-02 | Sentry standalone | Compromise/disable requester software; attempt replay, stale authorization, reset/downgrade and failure modes | Protected effect cannot commit without valid boundary satisfaction | Threat model, traces, hardware/config versions | NOT TESTED |
-| COMP-01 | OpenShell + Sentry | Exercise authorized and denied requests end-to-end through actual integrated deployment | Only intended protected effects commit; no alternate path | Architecture, policy, component versions, traces | NOT TESTED |
-| COMP-02 | OpenShell + Sentry | Fail/restart either component, change policy, downgrade configuration, disconnect control channel | Composition fails closed and preserves binding between authorization and effect | Fault injection, timing, effect-side records | NOT TESTED |
+## Result-state vocabulary
+
+- `NOT TESTED`: no adequate runtime execution record exists.
+- `INCONCLUSIVE`: test ran, but evidence does not decide the stated hypothesis.
+- `PASS`: observed behavior meets the explicit expected result in the recorded scope.
+- `FAIL`: observed behavior violates the explicit expected result in the recorded scope.
+
+Do not use `NOT REPRODUCED` unless an actual reproduction attempt ran and its conditions/results are recorded. Evidence class is separate from test result: `DOC-CLAIM`, `SOURCE`, `TEST-CONTRACT`, `RUNTIME`.
+
+## Test matrix
+
+| ID | Target | Test | Expected safe result | Evidence to capture, including effect-side observation | Evidence class at planning stage | EABC criterion | Status |
+|---|---|---|---|---|---|---|---|
+| NET-01 | Docker | Attempt direct TCP to a controlled public canary IP without configured relay | No direct egress; canary receives no connection or payload | Exact image/commit/config, command, packet capture, broker logs, canary connection log | DOC-CLAIM + SOURCE + TEST-CONTRACT | NON_BYPASSABILITY(B,E); INTEGRITY_CTX(C,B,E) | NOT TESTED |
+| NET-02 | Docker / Podman / VM separately | Try direct UDP and DNS, IPv4 and IPv6, ICMP, raw sockets, alternate socket families, socket rebinding, and UNIX socket paths outside the approved broker; include mixed A/AAAA answers | Unsupported or unauthorized paths are rejected; no unmediated path reaches canary | Per-driver command/script, syscall and network traces, resolver answers, broker logs, canary-side records | DOC-CLAIM + SOURCE + TEST-CONTRACT | NON_BYPASSABILITY(B,E); INTEGRITY_CTX(C,B,E) | NOT TESTED |
+| NET-03 | Each driver | Kill/restart supervisor or broker during attempted connection and while a connection is active | No fail-open path; protected traffic stops or is denied | Fault-injection timeline, process logs, packet capture, upstream canary records | SOURCE + TEST-CONTRACT | NON_BYPASSABILITY(B,E); INTEGRITY_STATE(B,E) | NOT TESTED |
+| NET-04 | Each driver | Attempt private, link-local and metadata targets; DNS rebinding and mixed A/AAAA responses | Denied unless explicitly authorized; resolved destination remains within the authorized decision | Resolver answers, policy decision/generation, packet capture, canary/upstream records | SOURCE + TEST-CONTRACT | INTEGRITY_CTX(C,B,E); NON_BYPASSABILITY(B,E) | NOT TESTED |
+| CRED-01 | Docker E2E | Wrong host/port/path, alias, untrusted CA and disallowed binary against synthetic endpoint | Backend receives no accepted protected call and no injected credential | Config/policy hashes, request trace, client result, backend counters and credential-safe audit record | TEST-CONTRACT | INTEGRITY_CTX(C,B,E); EXCLUSIVITY; NON_BYPASSABILITY(B,E) | NOT TESTED |
+| CRED-02 | Docker E2E | Rotate provider credential A→B; compare persistent and ordinary references; revoke A | Persistent reference uses current B as designed; revoked ordinary reference is rejected | Provider-side generation/counters, request trace and test output; never store raw secret values | TEST-CONTRACT | INTEGRITY_CTX(C,B,E); EXCLUSIVITY | NOT TESTED |
+| GEN-01 | Supervisor proxy | Place a barrier between main authorization and credential-guard evaluation; reload policy from raw-tunnel allowed to L7/credential-constrained and reverse | Stale decision cannot send protected request or injected credential to upstream | Barrier timestamps, generation IDs, client transcript, proxy logs AND upstream canary logs showing whether protected bytes/credential arrived | SOURCE + TEST-CONTRACT | INTEGRITY_STATE(B,E); INTEGRITY_CTX(C,B,E); NON_BYPASSABILITY(B,E) | NOT TESTED |
+| GEN-02 | Supervisor proxy | Reload policy between final generation check and CONNECT success | Stale CONNECT rejected/closed before protected bytes reach upstream | Client transcript, generation timeline, proxy logs AND upstream canary connection/payload record | SOURCE + TEST-CONTRACT | INTEGRITY_STATE(B,E); NON_BYPASSABILITY(B,E) | NOT TESTED |
+| GEN-03 | Active relay | Publish fail-closed generation during raw/HTTP relay | Stale relay closes; no protected bytes or injected credential flow after the applicable invalidation point | Generation timeline, socket traces, byte counts, proxy logs AND upstream canary records | SOURCE + TEST-CONTRACT | INTEGRITY_STATE(B,E); NON_BYPASSABILITY(B,E) | NOT TESTED |
+| EVAL-01 | OPA/proxy | Compare absent L7 metadata with authoritative evaluation error, including credential-injection endpoints | Authoritative evaluation error denies. Missing-metadata fallback must not weaken the applicable boundary or expose injected credentials | OPA input/result, policy and generation, proxy decision, client transcript, upstream canary record | TEST-CONTRACT + SOURCE | INTEGRITY_CTX(C,B,E); NON_BYPASSABILITY(B,E); EXCLUSIVITY | NOT TESTED |
+| VM-01 | VM/libkrun | RO and RW virtiofs behavior with temporary share | RO cannot mutate host share; RW changes only the intended share | Host hashes, guest commands, mount table, logs, host/guest versions | SOURCE + TEST-CONTRACT | INTEGRITY_DEF(B); NON_BYPASSABILITY(B,E) | NOT TESTED |
+| VM-02 | VM/libkrun | Put harmless canary files outside allowed share on same filesystem; attempt access from guest | Guest cannot access paths outside the authorized share | Host mount namespace and VMM process configuration, guest output, host audit logs and canary access logs | DOC-CLAIM + SOURCE | INTEGRITY_DEF(B); NON_BYPASSABILITY(B,E); INTEGRITY_CTX(C,B,E) | NOT TESTED |
+| VM-03 | VM/libkrun | Test final and parent symlinks, symlinks and hardlinks inside share pointing outside, `..` traversal, source replacement during provisioning, and already-open file descriptors | No path or descriptor grants access outside the authorized share; invalid paths/races fail safely | Exact filesystem layout, race script, inode/device identities, host and guest traces, canary access logs | SOURCE + TEST-CONTRACT | INTEGRITY_DEF(B); NON_BYPASSABILITY(B,E); INTEGRITY_CTX(C,B,E) | NOT TESTED |
+| VM-04 | VM/libkrun | Attempt reserved/overlapping guest targets and force virtiofs mount failure | Provision/mount fails rather than silently continuing with unintended semantics | Manifest, init logs, guest mount table, host-side records | SOURCE + TEST-CONTRACT | INTEGRITY_DEF(B); NON_BYPASSABILITY(B,E) | NOT TESTED |
+| SENTRY-01 | Sentry standalone | First pin exact Sentry software/firmware version, device/model, deployment mode and configuration; then identify protected effect and enumerate every commit path, including alternate/local paths | Audit scope is reproducible; every path to the protected effect traverses the claimed boundary | Version/firmware identifiers, wiring and architecture, threat model, effect-side traces and bypass attempts | NOT ASSESSED until pinned evidence is collected | To be determined from concrete boundary and protected effect | NOT TESTED |
+| SENTRY-02 | Sentry standalone | With pinned version, compromise/disable requester software; test replay, stale authorization, reset/downgrade and failure modes | Protected effect cannot commit without valid boundary satisfaction | Exact versions/config, fault-injection steps, authorization/effect traces, hardware records | NOT ASSESSED until pinned evidence is collected | NON_BYPASSABILITY(B,E); INTEGRITY_STATE(B,E); INTEGRITY_CTX(C,B,E), as applicable | NOT TESTED |
+| COMP-01 | OpenShell + Sentry | Pin OpenShell commit and exact Sentry software/firmware/device/config; exercise authorized and denied requests end-to-end | Only intended protected effects commit; no alternate path bypasses the composed boundary | Architecture and versions, policy/config hashes, component logs, client transcript AND protected-effect-side record | NOT ASSESSED until both components and deployment are pinned | To be determined for the composed boundary; assess NON_BYPASSABILITY(B,E) and binding of context/state | NOT TESTED |
+| COMP-02 | OpenShell + Sentry | With pinned composition, fail/restart either component, change policy, downgrade configuration and disconnect control channel | Composition fails safely and preserves authorization-to-effect binding | Fault-injection timeline, versions/config, component logs, client transcript AND protected-effect-side record | NOT ASSESSED until both components and deployment are pinned | NON_BYPASSABILITY(B,E); INTEGRITY_STATE(B,E); INTEGRITY_CTX(C,B,E), as applicable | NOT TESTED |
 
 ## Execution record template
 
 For every attempted row, add:
 
 - Date/time and operator.
-- Host OS/version and hardware.
-- OpenShell commit, driver, libkrun/Sentry firmware and software versions.
+- Host OS/version, hardware, and relevant isolation settings.
+- OpenShell commit, driver, libkrun version, and Sentry firmware/software/device versions where applicable.
 - Exact test command/script revision and configuration/policy hashes.
 - Expected result and observed result.
-- Logs, packet captures, effect-side records and artifact paths.
-- Outcome: PASS / FAIL / INCONCLUSIVE; explain deviations.
+- Client-side result and independent upstream/protected-effect-side observation.
+- Logs, packet captures, effect-side records, and artifact paths.
+- Result: `PASS`, `FAIL`, or `INCONCLUSIVE`; explain deviations.
 - Scope limitations and whether the result applies to Docker, Podman, VM, Sentry, or their composition.
 
-Do not mark a test PASS based only on a unit-test name or code inspection.
+Do not mark a test `PASS` based only on a unit-test name, code inspection, or supervisor logs when the claim concerns whether a protected effect or credential reached its destination.
