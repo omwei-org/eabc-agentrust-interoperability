@@ -15,15 +15,15 @@ Track an evidence-based review of NVIDIA OpenShell and NVIDIA Sentry against the
 
 Use the following status labels consistently:
 
-- **CONFIRMED — source**: directly supported by pinned source or documentation.
-- **CONFIRMED — test contract**: a named test exists and asserts the stated behavior; this does not mean it was run.
-- **CONFIRMED — runtime**: reproduced in a recorded environment with commands, versions, output, and artifacts.
-- **NOT REPRODUCED**: an attempted reproduction did not demonstrate the issue; include conditions and limitations.
-- **NOT TESTED**: no adequate runtime test has been performed.
-- **NOT CONFIRMED**: available evidence is insufficient to establish the claim.
-- **NOT CLAIMED**: the vendor/source does not appear to make the claim being discussed; do not treat this alone as a defect.
+- **DOC-CLAIM**: a vendor/upstream documentation statement; not independently verified by runtime testing.
+- **SOURCE**: behavior or control observed in pinned implementation source.
+- **TEST-CONTRACT**: a test exists and asserts the stated behavior; this does not mean it was run.
+- **RUNTIME**: evidence from an executed test in a recorded environment with commands, versions, observed results and artifacts.
+- **NOT ASSESSED**: evidence has not yet been collected to evaluate the claim.
 
-Do not convert a source-level test into a claim of runtime validation. Do not report a vulnerability solely because a control was not found in the files reviewed. Record pinned commits and platform/driver scope for every conclusion.
+Keep evidence class separate from test result. Runtime result vocabulary: **NOT TESTED**, **INCONCLUSIVE**, **PASS**, **FAIL**. Use **NOT REPRODUCED** only after an actual reproduction attempt was executed and its conditions/results recorded.
+
+Do not convert a source-level test into a claim of runtime validation. Do not report a vulnerability solely because a control was not found in the files reviewed. Record pinned commits and platform/driver scope for every conclusion. Every finding must include its evidence class, an explicit EABC criterion mapping (or state that mapping is not yet assessed), and permalink(s) to the pinned source/documentation with line ranges wherever available. A candidate EABC mapping is not a conformance result.
 
 ## Current documents
 
@@ -33,7 +33,7 @@ Do not convert a source-level test into a claim of runtime validation. Do not re
 
 ## Initial baseline
 
-OpenShell source review is pinned to [`a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`](https://github.com/NVIDIA/OpenShell/commit/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317). The review environment could not resolve GitHub/raw GitHub hosts for local checkout/runtime testing. Source inspection was performed through repository connector access; runtime claims therefore remain unverified unless explicitly documented otherwise.
+OpenShell source review is pinned to [`a4c848adbddd0b4732fd70ddcf8a563a5b1e9317`](https://github.com/NVIDIA/OpenShell/commit/a4c848adbddd0b4732fd70ddcf8a563a5b1e9317). The review environment could not resolve GitHub/raw GitHub hosts for local checkout/runtime testing. Source/documentation inspection was performed through repository connector access; no runtime tests were executed. Therefore, runtime status remains NOT TESTED unless a later dated execution record is added.
 
 ## Working rule
 
