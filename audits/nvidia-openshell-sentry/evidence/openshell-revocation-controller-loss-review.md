@@ -100,11 +100,12 @@ cargo nextest run --locked --config-file .config/nextest.toml --profile ci --man
 
 The GitHub Actions run exposes one artifact, `compatibility-review-run-38991707083-attempt-1`. I downloaded and inspected its contents. It contains `report.json`, `report.md`, and `comment.md` for an **advisory API/SDK compatibility review**, not JUnit results or Rust test output. It therefore cannot establish that either named Rust regression test executed or passed. No JUnit artifact was present in the run's artifact listing.
 
-The intended exact-SHA commands, after checking `crates/openshell-supervisor-network/Cargo.toml` (package name: `openshell-supervisor-network`), are:
+The exact-SHA test workflow is now defined in [`.github/workflows/openshell-targeted-tests.yml`](../../../.github/workflows/openshell-targeted-tests.yml). It checks out `NVIDIA/OpenShell` at `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, verifies the checked-out SHA, and individually runs these three distinct source tests in package `openshell-supervisor-network`:
 
 ```sh
-cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test(test_forward_relay_guard_blocks_stale_generation_before_upstream_write)'
-cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test(credential_guard_does_not_shadow_inspected_endpoint_config)'
+cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test(stale_generation_fails_before_relay_context_is_created)' --junit <artifact-path>
+cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test(test_forward_relay_guard_blocks_stale_generation_before_upstream_write)' --junit <artifact-path>
+cargo nextest run --locked --profile ci -p openshell-supervisor-network -E 'test(credential_guard_does_not_shadow_inspected_endpoint_config)' --junit <artifact-path>
 ```
 
-These commands were **not executed in this environment** because the Rust toolchain is unavailable (`cargo: command not found`). Do not treat the commands above as results. To close this item, run them in a Rust-enabled checkout at exact commit `b58e24c9dabd6d4bcf2b7186592d3ad50646541b`, recording the checkout SHA, each command, exit code, and nextest output. These unit/regression tests would still not substitute for the separate runtime revocation/controller-loss tests.
+The workflow records the command, source SHA, cargo-nextest exit code, JUnit test-case/failure counts, per-test logs and metadata, and uploads them as an artifact. **The workflow definition itself is not a test result.** The targeted tests remain `NOT TESTED` until a run finishes and its artifact is inspected. The earlier local attempt could not run because this environment lacks `cargo`; these unit/regression tests would still not substitute for separate runtime revocation/controller-loss tests.
