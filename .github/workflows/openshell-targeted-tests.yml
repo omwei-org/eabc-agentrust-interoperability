@@ -1,0 +1,214 @@
+name: OpenShell targeted regression tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/openshell-sentry-2026-10
+    paths:
+      - .github/workflows/openshell-targeted-tests.yml
+
+concurrency:
+  group: openshell-targeted-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  targeted-regressions:
+    name: Run named tests at pinned OpenShell SHA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OPEN_SHELL_SHA: b58e24c9dabd6d4bcf2b7186592d3ad50646541b
+      CARGO_TERM_COLOR: always
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Checkout audit repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout exact OpenShell commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: NVIDIA/OpenShell
+          ref: b58e24c9dabd6d4bcf2b7186592d3ad50646541b
+          path: OpenShell
+          persist-credentials: false
+
+      - name: Verify exact source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd OpenShell
+          actual="$(git rev-parse HEAD)"
+          echo "expected_sha=$OPEN_SHELL_SHA"
+          echo "actual_sha=$actual"
+          test "$actual" = "$OPEN_SHELL_SHA"
+          mkdir -p ../artifacts
+          {
+            echo "audit_repository=omwei-org/eabc-agentrust-interoperability"
+            echo "audit_repository_sha=$GITHUB_SHA"
+            echo "workflow_ref=$GITHUB_WORKFLOW_REF"
+            echo "target_repository=NVIDIA/OpenShell"
+            echo "target_sha=$actual"
+            echo "checkout_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > ../artifacts/source-checkout.txt
+
+      - name: Install Rust toolchain from pinned OpenShell source
+        uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582 # pinned Rust toolchain action
+        with:
+          toolchain: 1.95.0
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake pkg-config libz3-dev
+
+      - name: Install pinned cargo-nextest
+        run: cargo install cargo-nextest --version 0.9.143 --locked
+
+      - name: List and run each named regression test
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd OpenShell
+          mkdir -p ../artifacts
+          overall_rc=0
+
+          run_one() {
+            name="$1"
+            filter="$2"
+            junit="$GITHUB_WORKSPACE/artifacts/$name.junit.xml"
+            log="../artifacts/$name.log"
+            meta="../artifacts/$name.meta.txt"
+            listed="../artifacts/$name.list.txt"
+            tool_config="/tmp/nextest-$name.toml"
+
+            {
+              echo "test_name=$filter"
+              echo "audit_repository=omwei-org/eabc-agentrust-interoperability"
+              echo "audit_repository_sha=$GITHUB_SHA"
+              echo "workflow_ref=$GITHUB_WORKFLOW_REF"
+              echo "target_sha=$(git rev-parse HEAD)"
+              echo "cargo_nextest_version=$(cargo nextest --version)"
+              echo "started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            } > "$meta"
+
+            set +e
+            cargo nextest list --locked --profile ci --workspace --features openshell-server/test-support > "$listed" 2>&1
+            list_rc=$?
+            set -e
+            cat "$listed"
+
+            if [ "$list_rc" -ne 0 ]; then
+              echo "result=HARNESS ERROR" | tee -a "$meta"
+              echo "nextest_list_exit_code=$list_rc" | tee -a "$meta"
+              overall_rc=1
+              return
+            fi
+
+            if ! grep -F -- "$filter" "$listed" >/dev/null; then
+              echo "result=NOT FOUND" | tee -a "$meta"
+              echo "nextest_list_exit_code=0" | tee -a "$meta"
+              overall_rc=1
+              return
+            fi
+
+            # Nextest writes JUnit via profile configuration, not a --junit CLI flag.
+            # Use a tool-specific overlay so upstream OpenShell files remain untouched.
+            printf '[profile.ci.junit]\npath = "%s"\nstore-success-output = true\n' "$junit" > "$tool_config"
+
+            command="cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E 'test(/(^|::)${filter}$/)' --tool-config-file openshell-audit:$tool_config"
+            {
+              echo "listed_test_match=$(grep -F -- "$filter" "$listed" | head -n 1)"
+              echo "command=$command"
+            } >> "$meta"
+
+            set +e
+            cargo nextest run --locked --profile ci --workspace --features openshell-server/test-support -E "test(/(^|::)${filter}$/)" --tool-config-file "openshell-audit:$tool_config" > "$log" 2>&1
+            rc=$?
+            set -e
+            cat "$log"
+            echo "cargo_nextest_exit_code=$rc" | tee -a "$meta"
+
+            if [ ! -s "$junit" ]; then
+              echo "result=HARNESS ERROR" | tee -a "$meta"
+              echo "reason=JUnit report missing or empty" | tee -a "$meta"
+              overall_rc=1
+              return
+            fi
+
+            set +e
+            python3 - "$junit" "$filter" "$rc" >> "$meta" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          report, target, run_rc = sys.argv[1], sys.argv[2], int(sys.argv[3])
+          try:
+              root = ET.parse(report).getroot()
+          except Exception as exc:
+              print("result=HARNESS ERROR")
+              print(f"junit_parse_error={exc}")
+              raise SystemExit(2)
+
+          cases = list(root.iter("testcase"))
+          selected = [
+              case for case in cases
+              if target == case.attrib.get("name", "")
+              or target in case.attrib.get("name", "")
+              or target in case.attrib.get("classname", "")
+          ]
+          print(f"junit_testcases_total={len(cases)}")
+          print(f"junit_matching_testcases={len(selected)}")
+          if len(cases) != 1 or len(selected) != 1:
+              print("result=HARNESS ERROR")
+              print("reason=Expected exactly one JUnit testcase for the exact named-test filter")
+              raise SystemExit(2)
+
+          failures = [node for case in selected for node in list(case.findall("failure")) + list(case.findall("error"))]
+          skipped = [node for case in selected for node in case.findall("skipped")]
+          if failures:
+              print("result=FAIL")
+              print(f"junit_failures_or_errors={len(failures)}")
+              raise SystemExit(1)
+          if skipped:
+              print("result=NOT TESTED")
+              print(f"junit_skipped={len(skipped)}")
+              raise SystemExit(2)
+          if run_rc != 0:
+              print("result=HARNESS ERROR")
+              print("reason=nextest returned nonzero but matching JUnit testcase has no failure/error")
+              raise SystemExit(2)
+          print("result=PASS")
+          PY
+            junit_rc=$?
+            set -e
+            if [ "$junit_rc" -ne 0 ]; then overall_rc=1; fi
+          }
+
+          run_one stale_generation_fails_before_relay_context_is_created stale_generation_fails_before_relay_context_is_created
+          run_one test_forward_relay_guard_blocks_stale_generation_before_upstream_write test_forward_relay_guard_blocks_stale_generation_before_upstream_write
+          run_one credential_guard_does_not_shadow_inspected_endpoint_config credential_guard_does_not_shadow_inspected_endpoint_config
+
+          {
+            echo "audit_repository=omwei-org/eabc-agentrust-interoperability"
+            echo "audit_repository_sha=$GITHUB_SHA"
+            echo "workflow_ref=$GITHUB_WORKFLOW_REF"
+            echo "target_repository=NVIDIA/OpenShell"
+            echo "target_sha=$(git rev-parse HEAD)"
+            echo "toolchain=$(rustc --version)"
+            echo "cargo_nextest=$(cargo nextest --version)"
+            echo "finished_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > ../artifacts/run-summary.txt
+          for f in ../artifacts/*.meta.txt; do cat "$f" >> ../artifacts/run-summary.txt; done
+          exit "$overall_rc"
+
+      - name: Upload logs, metadata, test listings and JUnit results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: openshell-targeted-regressions-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
