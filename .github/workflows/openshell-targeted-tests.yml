@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - audit/openshell-sentry-2026-10
+      - audit/openshell-live-policy-cutoff-test
     paths:
       - .github/workflows/openshell-targeted-tests.yml
 
@@ -61,62 +62,59 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import re
+          start_marker = "    #[tokio::test]\n    async fn raw_relay_closes_immediately_when_fail_closed_generation_is_published() {"
+          end_marker = "\n    }\n}"
+          start = source.index(start_marker)
+          end = source.index(end_marker, start) + len("\n    }")
+          replacement = """    #[tokio::test]
+    async fn raw_relay_closes_immediately_when_fail_closed_generation_is_published() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-          path = Path("OpenShell/crates/openshell-supervisor-network/src/proxy/relay.rs")
-          source = path.read_text()
-          pattern = r'    #\\[tokio::test\\]\\n    async fn raw_relay_closes_immediately_when_fail_closed_generation_is_published\\(\\) \\{\\n.*?\\n    \\}'
-          replacement = r'''    #[tokio::test]
-              async fn raw_relay_closes_immediately_when_fail_closed_generation_is_published() {
-                  use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let engine = Arc::new(OpaEngine::from_strings(POLICY_REGO, EMPTY_POLICY_DATA).unwrap());
+        let guard = engine.generation_guard(engine.current_generation()).unwrap();
+        let request = request_context();
+        let (mut client_peer, mut proxy_client) = tokio::io::duplex(64);
+        let (mut upstream_peer, mut proxy_upstream) = tokio::io::duplex(64);
 
-                  let engine = Arc::new(OpaEngine::from_strings(POLICY_REGO, EMPTY_POLICY_DATA).unwrap());
-                  let guard = engine.generation_guard(engine.current_generation()).unwrap();
-                  let request = request_context();
-                  let (mut client_peer, mut proxy_client) = tokio::io::duplex(64);
-                  let (mut upstream_peer, mut proxy_upstream) = tokio::io::duplex(64);
+        let relay = tokio::spawn(async move {
+            relay_tcp(&mut proxy_client, &mut proxy_upstream, &guard, &request).await
+        });
+        tokio::task::yield_now().await;
 
-                  let relay = tokio::spawn(async move {
-                      relay_tcp(&mut proxy_client, &mut proxy_upstream, &guard, &request).await
-                  });
-                  tokio::task::yield_now().await;
+        client_peer.write_all(b"before").await.expect("initial client write should succeed");
+        let mut before = [0_u8; 6];
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            upstream_peer.read_exact(&mut before),
+        )
+        .await
+        .expect("initial bytes should reach upstream")
+        .expect("upstream should read initial bytes");
+        assert_eq!(&before, b"before");
 
-                  client_peer.write_all(b"before").await.expect("initial client write should succeed");
-                  let mut before = [0_u8; 6];
-                  tokio::time::timeout(
-                      std::time::Duration::from_secs(1),
-                      upstream_peer.read_exact(&mut before),
-                  )
-                  .await
-                  .expect("initial bytes should reach upstream")
-                  .expect("upstream should read initial bytes");
-                  assert_eq!(&before, b"before");
+        engine.enter_fail_closed("candidate policy validation failed").unwrap();
 
-                  engine.enter_fail_closed("candidate policy validation failed").unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(1), relay)
+            .await
+            .expect("raw relay should close when its generation becomes stale")
+            .expect("relay task should not panic")
+            .expect("stale relay closure should be clean");
 
-                  tokio::time::timeout(std::time::Duration::from_secs(1), relay)
-                      .await
-                      .expect("raw relay should close when its generation becomes stale")
-                      .expect("relay task should not panic")
-                      .expect("stale relay closure should be clean");
-
-                  assert!(
-                      client_peer.write_all(b"after").await.is_err(),
-                      "client must not be able to write through the closed relay after policy change"
-                  );
-                  let mut after = [0_u8; 5];
-                  let read_after = tokio::time::timeout(
-                      std::time::Duration::from_millis(100),
-                      upstream_peer.read(&mut after),
-                  )
-                  .await
-                  .expect("upstream should observe relay closure promptly")
-                  .expect("upstream read should complete");
-                  assert_eq!(read_after, 0, "upstream must receive EOF, not post-change bytes");
-              }'''
-          source, count = re.subn(pattern, replacement, source, count=1, flags=re.S)
-          if count != 1:
-              raise SystemExit(f"expected exactly one raw relay test to patch, got {count}")
+        assert!(
+            client_peer.write_all(b"after").await.is_err(),
+            "client must not be able to write through the closed relay after policy change"
+        );
+        let mut after = [0_u8; 5];
+        let read_after = tokio::time::timeout(
+            std::time::Duration::from_millis(100),
+            upstream_peer.read(&mut after),
+        )
+        .await
+        .expect("upstream should observe relay closure promptly")
+        .expect("upstream read should complete");
+        assert_eq!(read_after, 0, "upstream must receive EOF, not post-change bytes");
+    }"""
+          source = source[:start] + replacement + source[end:]
           path.write_text(source)
           print("patched_live_policy_cutoff_test=1")
           PY
